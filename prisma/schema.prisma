@@ -1,0 +1,783 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model client_contacts {
+  id                     Int       @id @default(autoincrement())
+  client_id              Int
+  name                   String    @db.VarChar(255)
+  position               String?   @db.VarChar(100)
+  email                  String?   @db.VarChar(255)
+  phone                  String?   @db.VarChar(20)
+  is_primary             Boolean?  @default(false)
+  status                 String?   @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime? @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime? @db.Timestamp(6)
+  clients                clients   @relation(fields: [client_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model clients {
+  id                     Int                @id @default(autoincrement())
+  type                   String             @db.VarChar(20)
+  name                   String             @db.VarChar(255)
+  ruc                    String?            @db.VarChar(11)
+  dni                    String?            @db.VarChar(8)
+  email                  String?            @db.VarChar(255)
+  phone                  String?            @db.VarChar(20)
+  address                String?
+  category               String?            @db.VarChar(20)
+  notes                  String?
+  total_orders           Int?               @default(0)
+  active_orders          Int?               @default(0)
+  completed_orders       Int?               @default(0)
+  total_amount           Decimal?           @default(0) @db.Decimal(10, 2)
+  last_order_date        DateTime?          @db.Date
+  status                 String?            @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?          @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?          @db.Timestamp(6)
+  client_contacts        client_contacts[]
+  installations          installations[]
+  technical_visits       technical_visits[]
+  work_orders            work_orders[]
+
+  @@index([dni], map: "idx_clients_dni")
+  @@index([ruc], map: "idx_clients_ruc")
+  @@index([status], map: "idx_clients_status")
+  @@index([type], map: "idx_clients_type")
+}
+
+model communications {
+  id                     Int          @id @default(autoincrement())
+  order_id               String?      @db.VarChar(50)
+  client                 String?      @db.VarChar(255)
+  communication_type     String?      @db.VarChar(50)
+  communication_date     DateTime?    @db.Timestamp(6)
+  subject                String?      @db.VarChar(255)
+  description            String?
+  read                   Boolean?     @default(false)
+  is_internal            Boolean?     @default(false)
+  created_by             String?      @db.VarChar(255)
+  responsible            String?      @db.VarChar(255)
+  status                 String?      @default("pending") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?    @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?    @db.Timestamp(6)
+  work_orders            work_orders? @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model daily_reports {
+  id                             Int                  @id @default(autoincrement())
+  order_id                       String?              @db.VarChar(50)
+  installation_id                Int?
+  report_type                    String?              @db.VarChar(20)
+  technician                     String?              @db.VarChar(255)
+  report_date                    DateTime?            @db.Date
+  start_time                     DateTime?            @db.Time(6)
+  end_time                       DateTime?            @db.Time(6)
+  work_description               String?
+  progress_percentage            Int?
+  work_at_height                 Boolean?             @default(false)
+  ats_document                   Json?
+  ptr_document                   Json?
+  environmental_aspects_document Json?
+  observations                   String?
+  next_tasks                     String?
+  creation_time                  DateTime?            @db.Time(6)
+  status                         String?              @default("active") @db.VarChar(20)
+  user_id_registration           Int?
+  date_time_registration         DateTime?            @default(now()) @db.Timestamp(6)
+  user_id_modification           Int?
+  date_time_modification         DateTime?            @db.Timestamp(6)
+  installations                  installations?       @relation(fields: [installation_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders                    work_orders?         @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  final_report_items             final_report_items[]
+  report_materials               report_materials[]
+  report_photos                  report_photos[]
+
+  @@index([report_date], map: "idx_daily_reports_date")
+  @@index([installation_id], map: "idx_daily_reports_installation_id")
+  @@index([order_id], map: "idx_daily_reports_order_id")
+}
+
+model employee_permits {
+  id                     String               @id @db.VarChar(50)
+  employee_id            Int?
+  employee_name          String?              @db.VarChar(255)
+  permit_type            String?              @db.VarChar(20)
+  start_date             DateTime?            @db.Date
+  end_date               DateTime?            @db.Date
+  days_requested         Int?
+  reason                 String?
+  attached_documentation String?
+  approved_by            String?              @db.VarChar(255)
+  approval_date          DateTime?            @db.Timestamp(6)
+  rejected_by            String?              @db.VarChar(255)
+  rejection_reason       String?
+  rejection_date         DateTime?            @db.Timestamp(6)
+  update_date            DateTime?            @db.Timestamp(6)
+  status                 String?              @default("pending") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?            @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?            @db.Timestamp(6)
+  users                  users?               @relation(fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  permit_attachments     permit_attachments[]
+
+  @@index([employee_id], map: "idx_employee_permits_employee_id")
+  @@index([start_date], map: "idx_employee_permits_start_date")
+  @@index([status], map: "idx_employee_permits_status")
+}
+
+model final_report_items {
+  id                     Int            @id @default(autoincrement())
+  final_report_id        Int
+  daily_report_id        Int?
+  report_date            DateTime?      @db.Date
+  description            String?
+  progress_percentage    Int?
+  technician             String?        @db.VarChar(255)
+  observations           String?
+  status                 String?        @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?      @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?      @db.Timestamp(6)
+  daily_reports          daily_reports? @relation(fields: [daily_report_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  final_reports          final_reports  @relation(fields: [final_report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model final_reports {
+  id                     Int                  @id @default(autoincrement())
+  order_id               String               @db.VarChar(50)
+  generation_date        DateTime?            @db.Timestamp(6)
+  summary                Json?
+  signatures             Json?
+  blocked                Boolean?             @default(false)
+  status                 String?              @default("pending_technician_signature") @db.VarChar(50)
+  user_id_registration   Int?
+  date_time_registration DateTime?            @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?            @db.Timestamp(6)
+  final_report_items     final_report_items[]
+  work_orders            work_orders          @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model installations {
+  id                     Int             @id @default(autoincrement())
+  name                   String          @db.VarChar(255)
+  code                   String          @unique @db.VarChar(50)
+  client                 String?         @db.VarChar(255)
+  client_id              Int?
+  address                String?
+  specialty              String?         @db.VarChar(50)
+  equipment_type         String?         @db.VarChar(100)
+  brand                  String?         @db.VarChar(100)
+  model                  String?         @db.VarChar(100)
+  serial_number          String?         @db.VarChar(100)
+  installation_date      DateTime?       @db.Date
+  maintenance_frequency  String?         @db.VarChar(50)
+  last_maintenance_date  DateTime?       @db.Date
+  next_maintenance_date  DateTime?       @db.Date
+  status                 String?         @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?       @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?       @db.Timestamp(6)
+  daily_reports          daily_reports[]
+  clients                clients?        @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model material_categories {
+  id                     Int         @id @default(autoincrement())
+  name                   String      @unique @db.VarChar(255)
+  prefix                 String      @unique @db.VarChar(4)
+  description            String?
+  status                 String?     @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?   @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?   @db.Timestamp(6)
+  materials              materials[]
+}
+
+model material_request_items {
+  id                     Int               @id @default(autoincrement())
+  request_id             Int
+  material_id            Int?
+  material_name          String?           @db.VarChar(255)
+  requested_quantity     Decimal?          @db.Decimal(10, 2)
+  approved_quantity      Decimal?          @db.Decimal(10, 2)
+  unit                   String?           @db.VarChar(20)
+  status                 String?           @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?         @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?         @db.Timestamp(6)
+  observations           String?
+  materials              materials?        @relation(fields: [material_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  material_requests      material_requests @relation(fields: [request_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model material_requests {
+  id                     Int                      @id @default(autoincrement())
+  order_id               String?                  @db.VarChar(50)
+  technician_id          Int?
+  technician_name        String?                  @db.VarChar(255)
+  request_date           DateTime?                @db.Timestamp(6)
+  priority               String?                  @default("normal") @db.VarChar(20)
+  observations           String?
+  approval_date          DateTime?                @db.Timestamp(6)
+  approved_by            String?                  @db.VarChar(255)
+  delivery_date          DateTime?                @db.Timestamp(6)
+  delivered_by           String?                  @db.VarChar(255)
+  status                 String?                  @default("pending") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?                @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?                @db.Timestamp(6)
+  material_request_items material_request_items[]
+  work_orders            work_orders?             @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                  users?                   @relation(fields: [technician_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model materials {
+  id                     Int                      @id @default(autoincrement())
+  code                   String                   @unique @db.VarChar(50)
+  name                   String                   @db.VarChar(255)
+  category_id            Int?
+  unit                   String                   @db.VarChar(20)
+  current_stock          Decimal?                 @default(0) @db.Decimal(10, 2)
+  minimum_stock          Decimal?                 @default(0) @db.Decimal(10, 2)
+  unit_price             Decimal?                 @default(0) @db.Decimal(10, 2)
+  supplier               String?                  @db.VarChar(255)
+  warehouse_location     String?                  @db.VarChar(100)
+  status                 String?                  @default("available") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?                @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?                @db.Timestamp(6)
+  description            String?
+  material_request_items material_request_items[]
+  material_categories    material_categories?     @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([category_id], map: "idx_materials_category_id")
+  @@index([code], map: "idx_materials_code")
+  @@index([status], map: "idx_materials_status")
+}
+
+model notifications {
+  id                     Int       @id @default(autoincrement())
+  user_id                Int?
+  notification_type      String?   @db.VarChar(50)
+  title                  String?   @db.VarChar(255)
+  message                String?
+  read                   Boolean?  @default(false)
+  data                   Json?
+  status                 String?   @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime? @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime? @db.Timestamp(6)
+  users                  users?    @relation(fields: [user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([read], map: "idx_notifications_read")
+  @@index([notification_type], map: "idx_notifications_type")
+  @@index([user_id], map: "idx_notifications_user_id")
+}
+
+model order_photos {
+  id                     Int         @id @default(autoincrement())
+  order_id               String      @db.VarChar(50)
+  url                    String?
+  name                   String?     @db.VarChar(255)
+  size                   Int?
+  category               String?     @db.VarChar(100)
+  comment                String?
+  status                 String?     @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?   @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?   @db.Timestamp(6)
+  work_orders            work_orders @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model payment_conditions {
+  id                     Int       @id @default(autoincrement())
+  name                   String    @unique @db.VarChar(255)
+  description            String?
+  days_term              Int?
+  initial_percentage     Decimal?  @db.Decimal(5, 2)
+  display_order          Int?      @default(0)
+  status                 String?   @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime? @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime? @db.Timestamp(6)
+}
+
+model payroll_slips {
+  id                     Int       @id @default(autoincrement())
+  employee_id            Int?
+  employee_name          String?   @db.VarChar(255)
+  year                   Int?
+  month                  Int?
+  period                 String?   @db.VarChar(10)
+  total_amount           Decimal?  @db.Decimal(10, 2)
+  file_url               String?
+  file_name              String?   @db.VarChar(255)
+  file_size              Int?
+  uploaded_by            String?   @db.VarChar(255)
+  viewed_by              Json?
+  view_date              DateTime? @db.Timestamp(6)
+  status                 String?   @default("new") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime? @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime? @db.Timestamp(6)
+  position               String?   @db.VarChar(100)
+  base_salary            Decimal?  @db.Decimal(10, 2)
+  overtime_hours         Int?      @default(0)
+  bonuses                Decimal?  @default(0) @db.Decimal(10, 2)
+  deductions             Decimal?  @default(0) @db.Decimal(10, 2)
+  users                  users?    @relation(fields: [employee_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([employee_id], map: "idx_payroll_slips_employee_id")
+  @@index([period], map: "idx_payroll_slips_period")
+}
+
+model permissions {
+  id                     Int                 @id @default(autoincrement())
+  name                   String              @unique @db.VarChar(100)
+  description            String?
+  module                 String?             @db.VarChar(50)
+  status                 String?             @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?           @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?           @db.Timestamp(6)
+  roles_permissions      roles_permissions[]
+}
+
+model permit_attachments {
+  id                     Int              @id @default(autoincrement())
+  permit_id              String           @db.VarChar(50)
+  name                   String?          @db.VarChar(255)
+  file_type              String?          @db.VarChar(100)
+  size                   Int?
+  url                    String?
+  status                 String?          @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?        @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?        @db.Timestamp(6)
+  employee_permits       employee_permits @relation(fields: [permit_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model quotation_items {
+  id                      Int        @id @default(autoincrement())
+  quotation_id            Int
+  item_type               String?    @db.VarChar(20)
+  description             String?    @db.VarChar(255)
+  code                    String?    @db.VarChar(50)
+  quantity                Decimal?   @db.Decimal(10, 2)
+  unit                    String?    @db.VarChar(20)
+  unit_price              Decimal?   @db.Decimal(10, 2)
+  subtotal                Decimal?   @db.Decimal(10, 2)
+  material_description    String?
+  labor_description       String?
+  equipment_service       String?
+  contractor_deliverables String?
+  status                  String?    @default("active") @db.VarChar(20)
+  user_id_registration    Int?
+  date_time_registration  DateTime?  @default(now()) @db.Timestamp(6)
+  user_id_modification    Int?
+  date_time_modification  DateTime?  @db.Timestamp(6)
+  quotations              quotations @relation(fields: [quotation_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model quotations {
+  id                     Int               @id @default(autoincrement())
+  number                 String            @unique @db.VarChar(50)
+  client                 Json?
+  quotation_date         DateTime?         @db.Date
+  expiration_date        DateTime?         @db.Date
+  validity_days          Int?
+  payment_conditions     String?           @db.VarChar(255)
+  profit_margin          Decimal?          @db.Decimal(5, 2)
+  has_prices_assigned    Boolean?          @default(false)
+  subtotal               Decimal?          @default(0) @db.Decimal(10, 2)
+  tax                    Decimal?          @default(0) @db.Decimal(10, 2)
+  total                  Decimal?          @default(0) @db.Decimal(10, 2)
+  prepared_by            String?           @db.VarChar(255)
+  approved_by            String?           @db.VarChar(255)
+  approval_date          DateTime?         @db.Date
+  rejection_reason       String?
+  rejection_date         DateTime?         @db.Date
+  observations           String?
+  technical_visit_id     String?           @db.VarChar(50)
+  generated_order        String?           @db.VarChar(50)
+  status                 String?           @default("pending") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?         @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?         @db.Timestamp(6)
+  quotation_items        quotation_items[]
+  technical_visits       technical_visits? @relation(fields: [technical_visit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([number], map: "idx_quotations_number")
+  @@index([status], map: "idx_quotations_status")
+  @@index([technical_visit_id], map: "idx_quotations_technical_visit_id")
+}
+
+model report_materials {
+  id                     Int           @id @default(autoincrement())
+  report_id              Int
+  name                   String?       @db.VarChar(255)
+  quantity               Decimal?      @db.Decimal(10, 2)
+  unit                   String?       @db.VarChar(20)
+  status                 String?       @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?     @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?     @db.Timestamp(6)
+  daily_reports          daily_reports @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model report_photos {
+  id                     Int           @id @default(autoincrement())
+  report_id              Int
+  photo_type             String?       @db.VarChar(20)
+  url                    String?
+  name                   String?       @db.VarChar(255)
+  size                   Int?
+  status                 String?       @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?     @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?     @db.Timestamp(6)
+  daily_reports          daily_reports @relation(fields: [report_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model roles {
+  id                     Int                 @id @default(autoincrement())
+  name                   String              @unique @db.VarChar(50)
+  description            String?
+  status                 String?             @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?           @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?           @db.Timestamp(6)
+  roles_permissions      roles_permissions[]
+  users                  users[]
+}
+
+model roles_permissions {
+  id                     Int         @id @default(autoincrement())
+  role_id                Int
+  permission_id          Int
+  status                 String?     @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?   @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?   @db.Timestamp(6)
+  permissions            permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roles                  roles       @relation(fields: [role_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([role_id, permission_id])
+}
+
+model service_types {
+  id                     Int       @id @default(autoincrement())
+  name                   String    @unique @db.VarChar(255)
+  description            String?
+  icon                   String?   @db.VarChar(50)
+  color                  String?   @db.VarChar(20)
+  display_order          Int?      @default(0)
+  status                 String?   @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime? @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime? @db.Timestamp(6)
+}
+
+model technical_visit_technicians {
+  id                     Int              @id @default(autoincrement())
+  visit_id               String           @db.VarChar(50)
+  technician_id          Int?
+  name                   String?          @db.VarChar(255)
+  specialty              String?          @db.VarChar(100)
+  status                 String?          @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?        @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?        @db.Timestamp(6)
+  technical_visits       technical_visits @relation(fields: [visit_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model technical_visits {
+  id                             String                        @id @db.VarChar(50)
+  client                         String?                       @db.VarChar(255)
+  client_id                      Int?
+  address                        String?
+  contact                        String?                       @db.VarChar(255)
+  phone                          String?                       @db.VarChar(20)
+  email                          String?                       @db.VarChar(255)
+  visit_date                     DateTime?                     @db.Date
+  visit_time                     DateTime?                     @db.Time(6)
+  service_type                   String?                       @db.VarChar(100)
+  service_description            String?
+  observations                   String?
+  assigned_technician            String?                       @db.VarChar(255)
+  requested_by                   String?                       @db.VarChar(255)
+  project_name                   String?                       @db.VarChar(255)
+  gps_coordinates                Json?
+  estimated_materials            Json?
+  required_tools                 Json?
+  required_personnel             Json?
+  personnel_list                 Json?
+  place_status                   Json?
+  technician_signature           String?
+  completed_date                 DateTime?                     @db.Timestamp(6)
+  place_status_registration_date DateTime?                     @db.Timestamp(6)
+  generated_quotation            String?                       @db.VarChar(50)
+  quotation_generation_date      DateTime?                     @db.Timestamp(6)
+  generated_order                String?                       @db.VarChar(50)
+  order_generation_date          DateTime?                     @db.Timestamp(6)
+  approval                       Json?
+  solpe                          String?                       @db.VarChar(15)
+  status                         String?                       @default("pending") @db.VarChar(20)
+  user_id_registration           Int?
+  date_time_registration         DateTime?                     @default(now()) @db.Timestamp(6)
+  user_id_modification           Int?
+  date_time_modification         DateTime?                     @db.Timestamp(6)
+  quotations                     quotations[]
+  technical_visit_technicians    technical_visit_technicians[]
+  clients                        clients?                      @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_orders                    work_orders[]
+
+  @@index([client_id], map: "idx_technical_visits_client_id")
+  @@index([status], map: "idx_technical_visits_status")
+  @@index([visit_date], map: "idx_technical_visits_visit_date")
+}
+
+model tool_request_items {
+  id                     Int           @id @default(autoincrement())
+  request_id             Int
+  tool_id                Int?
+  tool_name              String?       @db.VarChar(255)
+  quantity               Int?
+  status                 String?       @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?     @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?     @db.Timestamp(6)
+  expected_return_date   DateTime?     @db.Timestamp(6)
+  actual_return_date     DateTime?     @db.Timestamp(6)
+  delivery_date          DateTime?     @db.Timestamp(6)
+  reason                 String?       @db.VarChar(255)
+  observations           String?
+  tool_requests          tool_requests @relation(fields: [request_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  tools                  tools?        @relation(fields: [tool_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model tool_requests {
+  id                     Int                  @id @default(autoincrement())
+  order_id               String?              @db.VarChar(50)
+  technician_id          Int?
+  technician_name        String?              @db.VarChar(255)
+  request_date           DateTime?            @db.Timestamp(6)
+  return_date            DateTime?            @db.Timestamp(6)
+  observations           String?
+  return_observations    String?
+  status                 String?              @default("pending") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?            @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?            @db.Timestamp(6)
+  tool_request_items     tool_request_items[]
+  work_orders            work_orders?         @relation(fields: [order_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                  users?               @relation(fields: [technician_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model tools {
+  id                     Int                  @id @default(autoincrement())
+  code                   String               @unique @db.VarChar(50)
+  name                   String               @db.VarChar(255)
+  brand                  String?              @db.VarChar(100)
+  model                  String?              @db.VarChar(100)
+  description            String?
+  quantity               Int?                 @default(1)
+  value                  Decimal?             @db.Decimal(10, 2)
+  location               String?              @db.VarChar(100)
+  assigned_to_user_id    Int?
+  assignment_date        DateTime?            @db.Timestamp(6)
+  admission_date         DateTime?            @db.Date
+  created_by             String?              @db.VarChar(255)
+  status                 String?              @default("available") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?            @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?            @db.Timestamp(6)
+  category_id            Int?
+  tool_request_items     tool_request_items[]
+  tool_categories        tool_categories?     @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "fk_tools_category")
+  users                  users?               @relation(fields: [assigned_to_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([assigned_to_user_id], map: "idx_tools_assigned_to_user_id")
+  @@index([code], map: "idx_tools_code")
+  @@index([status], map: "idx_tools_status")
+  @@index([category_id], map: "idx_tools_category_id")
+  @@index([location], map: "idx_tools_location")
+}
+
+model users {
+  id                     Int                  @id @default(autoincrement())
+  name                   String               @db.VarChar(255)
+  email                  String               @unique @db.VarChar(255)
+  password               String               @db.VarChar(255)
+  role_id                Int
+  phone                  String?              @db.VarChar(20)
+  dni                    String?              @db.VarChar(8)
+  address                String?
+  position               String?              @db.VarChar(100)
+  specialty              String?              @db.VarChar(50)
+  last_activity          DateTime?            @db.Timestamp(6)
+  status                 String?              @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime?            @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime?            @db.Timestamp(6)
+  employee_permits       employee_permits[]
+  material_requests      material_requests[]
+  notifications          notifications[]
+  payroll_slips          payroll_slips[]
+  tool_requests          tool_requests[]
+  tools                  tools[]
+  roles                  roles                @relation(fields: [role_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  work_order_history     work_order_history[]
+
+  @@index([email], map: "idx_users_email")
+  @@index([role_id], map: "idx_users_role_id")
+  @@index([status], map: "idx_users_status")
+}
+
+model work_orders {
+  id                       String               @id @db.VarChar(50)
+  client                   String?              @db.VarChar(255)
+  client_id                Int?
+  service_type             String?              @db.VarChar(255)
+  visit_type               String?              @db.VarChar(20)
+  technical_visit_id       String?              @db.VarChar(50)
+  based_on_technical_visit Boolean?             @default(false)
+  description              String?
+  location                 String?
+  priority                 String?              @db.VarChar(20)
+  due_date                 DateTime?            @db.Date
+  estimated_cost           Decimal?             @db.Decimal(10, 2)
+  assigned_technician      String?              @db.VarChar(255)
+  requested_by             String?              @db.VarChar(255)
+  progress_percentage      Int?                 @default(0)
+  approval_status          String?              @default("unassigned") @db.VarChar(50)
+  estimation_date          DateTime?            @db.Timestamp(6)
+  approval_date            DateTime?            @db.Timestamp(6)
+  approved_by              String?              @db.VarChar(255)
+  rejection_date           DateTime?            @db.Timestamp(6)
+  rejected_by              String?              @db.VarChar(255)
+  rejection_reason         String?
+  estimated_materials      Json?
+  estimated_time           Json?
+  required_tools           Json?
+  gps_coordinates          Json?
+  project_name             String?              @db.VarChar(255)
+  personnel_list           Json?
+  purchase_order_number    String?              @db.VarChar(50)
+  purchase_order_document  Json?
+  first_visit_completed    Boolean?             @default(false)
+  first_visit_date         DateTime?            @db.Date
+  reassignment_date        DateTime?            @db.Timestamp(6)
+  reassigned_by            String?              @db.VarChar(255)
+  resources                Json?
+  selected_materials       Json?
+  selected_tools           Json?
+  solpe                    String?              @db.VarChar(15)
+  resources_update_date    DateTime?            @db.Timestamp(6)
+  status                   String?              @default("pending") @db.VarChar(20)
+  user_id_registration     Int?
+  date_time_registration   DateTime?            @default(now()) @db.Timestamp(6)
+  user_id_modification     Int?
+  date_time_modification   DateTime?            @db.Timestamp(6)
+  communications           communications[]
+  daily_reports            daily_reports[]
+  final_reports            final_reports[]
+  material_requests        material_requests[]
+  order_photos             order_photos[]
+  tool_requests            tool_requests[]
+  work_order_history       work_order_history[]
+  clients                  clients?             @relation(fields: [client_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  technical_visits         technical_visits?    @relation(fields: [technical_visit_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([approval_status], map: "idx_work_orders_approval_status")
+  @@index([client_id], map: "idx_work_orders_client_id")
+  @@index([date_time_registration], map: "idx_work_orders_date_registration")
+  @@index([purchase_order_number], map: "idx_work_orders_purchase_order_number")
+  @@index([status], map: "idx_work_orders_status")
+  @@index([technical_visit_id], map: "idx_work_orders_technical_visit_id")
+}
+
+model specialty_rates {
+  id                     Int       @id @default(autoincrement())
+  specialty              String    @unique @db.VarChar(100)
+  description            String?
+  daily_rate             Decimal   @db.Decimal(10, 2)
+  hourly_rate            Decimal?  @db.Decimal(10, 2)
+  status                 String?   @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime? @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime? @db.Timestamp(6)
+
+  @@index([specialty], map: "idx_specialty_rates_specialty")
+  @@index([status], map: "idx_specialty_rates_status")
+}
+
+model tool_categories {
+  id                     Int       @id @default(autoincrement())
+  name                   String    @unique @db.VarChar(255)
+  prefix                 String    @unique @db.VarChar(4)
+  description            String?
+  status                 String?   @default("active") @db.VarChar(20)
+  user_id_registration   Int?
+  date_time_registration DateTime? @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
+  date_time_modification DateTime? @db.Timestamp(6)
+  tools                  tools[]
+}
+
+model work_order_history {
+  id                 Int         @id @default(autoincrement())
+  work_order_id      String      @db.VarChar(50)
+  user_id            Int?
+  action_type        String      @db.VarChar(50)
+  action_description String?
+  field_changed      String?     @db.VarChar(100)
+  old_value          String?
+  new_value          String?
+  ip_address         String?     @db.VarChar(50)
+  user_agent         String?
+  created_at         DateTime?   @default(now()) @db.Timestamp(6)
+  users              users?      @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+  work_orders        work_orders @relation(fields: [work_order_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([created_at], map: "idx_work_order_history_created_at")
+  @@index([work_order_id], map: "idx_work_order_history_order_id")
+}
