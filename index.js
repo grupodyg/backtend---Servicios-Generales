@@ -39,6 +39,7 @@ const employeePermitsRoutes = require('./routes/employeePermitsRoutes');
 const communicationsRoutes = require('./routes/communicationsRoutes');
 const payrollSlipsRoutes = require('./routes/payrollSlipsRoutes');
 const permitAttachmentsRoutes = require('./routes/permitAttachmentsRoutes');
+const filesRoutes = require('./routes/filesRoutes');
 
 const app = express();
 const PORT = process.env.PORT;
@@ -116,6 +117,9 @@ app.use('/api/payroll-slips', payrollSlipsRoutes);
 
 // RRHH - Adjuntos de Permisos
 app.use('/api/permit-attachments', permitAttachmentsRoutes);
+
+// Archivos S3 (proxy)
+app.use('/api/files', filesRoutes);
 
 // Ruta de prueba
 app.get('/api/ping', async (req, res) => {

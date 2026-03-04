@@ -1,4 +1,4 @@
-const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } = require('@aws-sdk/client-s3');
+const { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command, GetObjectCommand } = require('@aws-sdk/client-s3');
 
 const s3Client = new S3Client({
   endpoint: process.env.WASABI_ENDPOINT || 'https://s3.us-east-1.wasabisys.com',
@@ -12,9 +12,9 @@ const s3Client = new S3Client({
 
 const BUCKET = process.env.WASABI_BUCKET_UPLOADS || 'dig-ssgg-uploads';
 
-const getPublicUrl = (key) => {
-  const endpoint = process.env.WASABI_ENDPOINT || 'https://s3.us-east-1.wasabisys.com';
-  return `${endpoint}/${BUCKET}/${key}`;
+// Retorna URL proxy del backend: /api/files/{key}
+const getProxyUrl = (key) => {
+  return `/api/files/${key}`;
 };
 
 const uploadFile = async (buffer, key, mimetype) => {
@@ -22,12 +22,11 @@ const uploadFile = async (buffer, key, mimetype) => {
     Bucket: BUCKET,
     Key: key,
     Body: buffer,
-    ContentType: mimetype,
-    ACL: 'public-read'
+    ContentType: mimetype
   });
 
   await s3Client.send(command);
-  return getPublicUrl(key);
+  return getProxyUrl(key);
 };
 
 const deleteFile = async (key) => {
@@ -39,6 +38,15 @@ const deleteFile = async (key) => {
   await s3Client.send(command);
 };
 
+const getFile = async (key) => {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET,
+    Key: key
+  });
+
+  return await s3Client.send(command);
+};
+
 const listFiles = async (prefix) => {
   const command = new ListObjectsV2Command({
     Bucket: BUCKET,
@@ -48,10 +56,10 @@ const listFiles = async (prefix) => {
   const response = await s3Client.send(command);
   return (response.Contents || []).map(item => ({
     key: item.Key,
-    url: getPublicUrl(item.Key),
+    url: getProxyUrl(item.Key),
     size: item.Size,
     lastModified: item.LastModified
   }));
 };
 
-module.exports = { uploadFile, deleteFile, listFiles, getPublicUrl };
+module.exports = { uploadFile, deleteFile, getFile, listFiles, getProxyUrl };
