@@ -52,10 +52,6 @@ if (!PORT) {
 app.use(cors());
 app.use(express.json());
 
-// 📌 Servir archivos estáticos (uploads)
-const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
 // 📌 Rutas de la API
 // Autenticación
 app.use('/api/auth', authRoutes);

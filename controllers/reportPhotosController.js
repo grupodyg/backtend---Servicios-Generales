@@ -1,6 +1,8 @@
 const { createReportPhoto, getPhotosByReportId, deletePhoto } = require('../models/reportPhotosModel');
 const { getDailyReportById } = require('../models/dailyReportsModel');
 const { addWorkOrderHistoryEntry } = require('../models/workOrdersModel');
+const { uploadFile } = require('../services/wasabiService');
+const path = require('path');
 
 // ========================================
 // SUBIR FOTOS A UN REPORTE
@@ -28,7 +30,9 @@ const uploadPhotos = async (req, res) => {
     const uploadedPhotos = [];
 
     for (const file of req.files) {
-      const photoUrl = `/uploads/work_orders/reports/work_orders_reports_photos/${file.filename}`;
+      const ext = path.extname(file.originalname);
+      const key = `report-photos/photo_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
+      const photoUrl = await uploadFile(file.buffer, key, file.mimetype);
 
       const photoData = {
         report_id: reportId,

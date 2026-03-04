@@ -1,4 +1,6 @@
 const { getAllPermitAttachments, getPermitAttachmentById, createPermitAttachment, updatePermitAttachment, deletePermitAttachment } = require('../models/permitAttachmentsModel');
+const { uploadFile } = require('../services/wasabiService');
+const path = require('path');
 
 const getAll = async (req, res) => {
   try {
@@ -62,4 +64,32 @@ const remove = async (req, res) => {
   }
 };
 
-module.exports = { getAll, getById, create, update, remove };
+// ========================================
+// SUBIR ARCHIVO DE PERMISO A S3
+// ========================================
+const uploadFileHandler = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No se subió archivo' });
+    }
+
+    const ext = path.extname(req.file.originalname);
+    const key = `permit-attachments/${Date.now()}_${Math.random().toString(36).substring(7)}_${req.file.originalname}`;
+    const fileUrl = await uploadFile(req.file.buffer, key, req.file.mimetype);
+
+    res.status(201).json({
+      mensaje: 'Archivo subido exitosamente',
+      data: {
+        url: fileUrl,
+        name: req.file.originalname,
+        size: req.file.size,
+        type: req.file.mimetype
+      }
+    });
+  } catch (error) {
+    console.error('Error al subir adjunto de permiso:', error);
+    res.status(500).json({ error: 'Error al subir archivo' });
+  }
+};
+
+module.exports = { getAll, getById, create, update, remove, uploadFile: uploadFileHandler };

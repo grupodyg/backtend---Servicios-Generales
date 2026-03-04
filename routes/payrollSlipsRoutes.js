@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const verificarToken = require('../middleware/authMiddleware');
-const { getAll, getById, create, update, remove } = require('../controllers/payrollSlipsController');
+const { getAll, getById, create, update, remove, uploadFile } = require('../controllers/payrollSlipsController');
+const { uploadDocuments } = require('../middleware/uploadMiddleware');
 
 const verificarRolesPermitidos = (req, res, next) => {
   const rol = req.user?.role_id;
@@ -17,6 +18,7 @@ router.use(verificarRolesPermitidos);
 router.get('/', getAll);
 router.get('/:id', getById);
 router.post('/', create);
+router.post('/upload', uploadDocuments.single('file'), uploadFile);
 router.put('/:id', update);
 router.delete('/:id', remove);
 

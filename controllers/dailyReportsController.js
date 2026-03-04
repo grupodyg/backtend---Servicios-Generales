@@ -12,6 +12,8 @@ const {
 const { addWorkOrderHistoryEntry, updateWorkOrderProgress } = require('../models/workOrdersModel');
 const pool = require('../config/db');
 const { getCurrentTimestamp } = require('../utils/dateUtils');
+const { uploadFile } = require('../services/wasabiService');
+const path = require('path');
 
 const getAll = async (req, res) => {
   try {
@@ -273,7 +275,9 @@ const uploadDocument = async (req, res) => {
       return res.status(400).json({ error: 'No se subió archivo' });
     }
 
-    const docUrl = `/uploads/work_orders/reports/work_orders_reports_documents/${req.file.filename}`;
+    const ext = path.extname(req.file.originalname);
+    const key = `report-documents/${docType}_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
+    const docUrl = await uploadFile(req.file.buffer, key, req.file.mimetype);
 
     const documentData = {
       url: docUrl,
