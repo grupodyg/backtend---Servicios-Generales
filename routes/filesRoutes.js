@@ -4,10 +4,11 @@ const { getFile } = require('../services/wasabiService');
 
 // Proxy para servir archivos desde S3
 // GET /api/files/{key} -> stream del archivo desde Wasabi S3
-router.get('/*', async (req, res) => {
+router.get('/*key', async (req, res) => {
   try {
-    // req.params[0] contiene todo después de /api/files/
-    const key = req.params[0];
+    // req.params.key contiene todo después de /api/files/
+    const keyParam = req.params.key;
+    const key = Array.isArray(keyParam) ? keyParam.join('/') : keyParam;
 
     if (!key) {
       return res.status(400).json({ error: 'Key de archivo requerida' });
