@@ -1,7 +1,7 @@
 const { createReportPhoto, getPhotosByReportId, deletePhoto } = require('../models/reportPhotosModel');
 const { getDailyReportById } = require('../models/dailyReportsModel');
 const { addWorkOrderHistoryEntry } = require('../models/workOrdersModel');
-const { uploadFile } = require('../services/wasabiService');
+const { uploadFile, deleteFile } = require('../services/wasabiService');
 const path = require('path');
 
 // ========================================
@@ -96,6 +96,17 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const deletedPhoto = await deletePhoto(id, req.user.id);
+
+    // Eliminar archivo de S3
+    if (deletedPhoto && deletedPhoto.url) {
+      const key = deletedPhoto.url.replace('/api/files/', '');
+      try {
+        await deleteFile(key);
+      } catch (s3Error) {
+        console.error('Error al eliminar foto de S3:', s3Error);
+      }
+    }
+
     res.json({ mensaje: 'Foto eliminada exitosamente', data: deletedPhoto });
   } catch (error) {
     console.error('Error al eliminar foto:', error);
