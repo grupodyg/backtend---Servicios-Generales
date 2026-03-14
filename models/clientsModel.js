@@ -49,7 +49,7 @@ const getAllClients = async (filters = {}) => {
            ) AS contacts
     FROM clients c
     LEFT JOIN client_contacts cc ON c.id = cc.client_id AND cc.status = 'active'
-    WHERE 1=1
+    WHERE c.status != 'deleted'
   `;
 
   const params = [];
@@ -196,7 +196,7 @@ const updateClient = async (id, clientData) => {
 const deleteClient = async (id, user_id) => {
   const query = `
     UPDATE clients
-    SET status = 'inactive', user_id_modification = $1, date_time_modification = CURRENT_TIMESTAMP
+    SET status = 'deleted', user_id_modification = $1, date_time_modification = CURRENT_TIMESTAMP
     WHERE id = $2
     RETURNING *
   `;
