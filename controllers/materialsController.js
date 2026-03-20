@@ -3,9 +3,12 @@ const {
   getMaterialById,
   createMaterial,
   updateMaterial,
+  updateMaterialImage,
   deleteMaterial
 } = require('../models/materialsModel');
 const { filterSensitiveFields } = require('../utils/filterSensitiveFields');
+const { uploadFile, deleteFile } = require('../services/wasabiService');
+const { extractS3Key, generateS3Key } = require('../utils/fileUtils');
 
 const getAll = async (req, res) => {
   try {
@@ -43,17 +46,22 @@ const create = async (req, res) => {
       return res.status(400).json({ error: 'Código, nombre y unidad son requeridos' });
     }
 
-    // Verificar que req.user existe (autenticación válida)
     if (!req.user || !req.user.id) {
-      console.error('Error: req.user no está definido o no tiene id', { user: req.user });
       return res.status(401).json({ error: 'Usuario no autenticado correctamente' });
+    }
+
+    let imageUrl = null;
+    if (req.file) {
+      const key = generateS3Key('materials/images', req.file.originalname);
+      imageUrl = await uploadFile(req.file.buffer, key, req.file.mimetype);
     }
 
     const materialData = {
       code, name, category_id: category_id || null, unit,
       current_stock: current_stock || 0, minimum_stock: minimum_stock || 0,
       unit_price: unit_price || 0, supplier: supplier || null,
-      warehouse_location: warehouse_location || null, user_id_registration: req.user.id
+      warehouse_location: warehouse_location || null, image_url: imageUrl,
+      user_id_registration: req.user.id
     };
 
     const newMaterial = await createMaterial(materialData);
@@ -61,12 +69,6 @@ const create = async (req, res) => {
     res.status(201).json({ mensaje: 'Material creado exitosamente', data: filteredMaterial });
   } catch (error) {
     console.error('Error al crear material:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail,
-      stack: error.stack
-    });
     if (error.code === '23505') {
       return res.status(409).json({ error: 'Ya existe un material con ese código' });
     }
@@ -85,21 +87,37 @@ const update = async (req, res) => {
     const { id } = req.params;
     const {
       code, name, category_id, unit, current_stock, minimum_stock,
-      unit_price, supplier, warehouse_location, status
+      unit_price, supplier, warehouse_location, status, remove_image
     } = req.body;
 
-    // Verificar autenticación
     if (!req.user || !req.user.id) {
-      console.error('Error: req.user no está definido o no tiene id', { user: req.user });
       return res.status(401).json({ error: 'Usuario no autenticado correctamente' });
     }
 
     const existingMaterial = await getMaterialById(id);
     if (!existingMaterial) return res.status(404).json({ error: 'Material no encontrado' });
 
+    let imageUrl = undefined;
+
+    if (req.file) {
+      const oldKey = extractS3Key(existingMaterial.image_url);
+      if (oldKey) {
+        try { await deleteFile(oldKey); } catch (e) { console.warn('No se pudo eliminar imagen anterior:', e.message); }
+      }
+      const key = generateS3Key('materials/images', req.file.originalname);
+      imageUrl = await uploadFile(req.file.buffer, key, req.file.mimetype);
+    } else if (remove_image === 'true') {
+      const oldKey = extractS3Key(existingMaterial.image_url);
+      if (oldKey) {
+        try { await deleteFile(oldKey); } catch (e) { console.warn('No se pudo eliminar imagen:', e.message); }
+      }
+      await updateMaterialImage(id, null);
+    }
+
     const materialData = {
       code, name, category_id, unit, current_stock, minimum_stock,
-      unit_price, supplier, warehouse_location, status, user_id_modification: req.user.id
+      unit_price, supplier, warehouse_location, image_url: imageUrl,
+      status, user_id_modification: req.user.id
     };
 
     const updatedMaterial = await updateMaterial(id, materialData);
@@ -107,11 +125,6 @@ const update = async (req, res) => {
     res.json({ mensaje: 'Material actualizado exitosamente', data: filteredMaterial });
   } catch (error) {
     console.error('Error al actualizar material:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail
-    });
     if (error.code === '23505') {
       return res.status(409).json({ error: 'Ya existe un material con ese código' });
     }
@@ -129,9 +142,7 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Verificar autenticación
     if (!req.user || !req.user.id) {
-      console.error('Error: req.user no está definido o no tiene id', { user: req.user });
       return res.status(401).json({ error: 'Usuario no autenticado correctamente' });
     }
 
@@ -141,11 +152,6 @@ const remove = async (req, res) => {
     res.json({ mensaje: 'Material eliminado exitosamente', data: deletedMaterial });
   } catch (error) {
     console.error('Error al eliminar material:', error);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail
-    });
     res.status(500).json({
       error: 'Error al eliminar material',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined

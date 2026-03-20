@@ -207,7 +207,7 @@ const deleteDailyReport = async (id, user_id) => {
 // Usa UNACCENT para comparar nombres ignorando acentos
 // CORREGIDO: Considera estados en español e inglés
 // ========================================
-const getStatisticsByTechnician = async () => {
+const getStatisticsByTechnician = async (client_id = null) => {
   // Verificar si UNACCENT está disponible
   let useUnaccent = false;
   try {
@@ -217,12 +217,6 @@ const getStatisticsByTechnician = async () => {
     console.log('⚠️ Extensión UNACCENT no disponible, usando TRANSLATE para normalizar');
   }
 
-  // Construir query con UNACCENT o TRANSLATE como fallback
-  // Nota: assigned_technician tiene formato "Nombre - Especialidad", por eso usamos LIKE
-  const normalizeFunc = useUnaccent
-    ? 'UNACCENT(LOWER(%s))'
-    : "TRANSLATE(LOWER(%s), 'áéíóúàèìòùäëïöüâêîôûãõñ', 'aeiouaeiouaeiouaeiouaon')";
-
   const compareFunc = useUnaccent
     ? 'UNACCENT(LOWER(wo.assigned_technician)) LIKE UNACCENT(LOWER(u.name)) || \'%\''
     : "TRANSLATE(LOWER(wo.assigned_technician), 'áéíóúàèìòùäëïöüâêîôûãõñ', 'aeiouaeiouaeiouaeiouaon') LIKE TRANSLATE(LOWER(u.name), 'áéíóúàèìòùäëïöüâêîôûãõñ', 'aeiouaeiouaeiouaeiouaon') || '%'";
@@ -230,6 +224,10 @@ const getStatisticsByTechnician = async () => {
   const compareReports = useUnaccent
     ? 'UNACCENT(LOWER(dr.technician)) = UNACCENT(LOWER(u.name))'
     : "TRANSLATE(LOWER(dr.technician), 'áéíóúàèìòùäëïöüâêîôûãõñ', 'aeiouaeiouaeiouaeiouaon') = TRANSLATE(LOWER(u.name), 'áéíóúàèìòùäëïöüâêîôûãõñ', 'aeiouaeiouaeiouaeiouaon')";
+
+  const clientFilter = client_id ? 'AND wo.client_id = $1' : '';
+  const clientFilterReports = client_id ? 'AND dr.order_id IN (SELECT id FROM work_orders WHERE client_id = $1)' : '';
+  const params = client_id ? [client_id] : [];
 
   const query = `
     SELECT
@@ -248,42 +246,50 @@ const getStatisticsByTechnician = async () => {
         END, 0
       ) AS efficiency
     FROM users u
-    LEFT JOIN work_orders wo ON ${compareFunc} AND wo.status NOT IN ('cancelled', 'deleted')
-    LEFT JOIN daily_reports dr ON ${compareReports} AND dr.status = 'active'
+    LEFT JOIN work_orders wo ON ${compareFunc} AND wo.status NOT IN ('cancelled', 'deleted') ${clientFilter}
+    LEFT JOIN daily_reports dr ON ${compareReports} AND dr.status = 'active' ${clientFilterReports}
     WHERE u.role_id = 4 AND u.status = 'active'
     GROUP BY u.id, u.name, u.specialty
     ORDER BY total_reports DESC, efficiency DESC
   `;
-  const result = await pool.query(query);
+  const result = await pool.query(query, params);
   return result.rows;
 };
 
 // ========================================
 // ESTADÍSTICAS GENERALES DE REPORTES
 // ========================================
-const getReportStatistics = async () => {
+const getReportStatistics = async (client_id = null) => {
+  const clientJoin = client_id ? 'JOIN work_orders wo ON dr.order_id = wo.id' : '';
+  const clientFilter = client_id ? 'AND wo.client_id = $1' : '';
+  const params = client_id ? [client_id] : [];
+
   const query = `
     SELECT
       COUNT(*) AS total_reports,
-      COUNT(CASE WHEN report_date = CURRENT_DATE THEN 1 END) AS reports_today,
-      COUNT(CASE WHEN report_date >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) AS reports_last_week,
-      COUNT(CASE WHEN report_date >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) AS reports_last_month,
-      ROUND(AVG(progress_percentage)::numeric, 0) AS avg_progress,
-      COUNT(DISTINCT technician) AS active_technicians,
-      COUNT(DISTINCT order_id) AS orders_with_reports
-    FROM daily_reports
-    WHERE status = 'active'
+      COUNT(CASE WHEN dr.report_date = CURRENT_DATE THEN 1 END) AS reports_today,
+      COUNT(CASE WHEN dr.report_date >= CURRENT_DATE - INTERVAL '7 days' THEN 1 END) AS reports_last_week,
+      COUNT(CASE WHEN dr.report_date >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) AS reports_last_month,
+      ROUND(AVG(dr.progress_percentage)::numeric, 0) AS avg_progress,
+      COUNT(DISTINCT dr.technician) AS active_technicians,
+      COUNT(DISTINCT dr.order_id) AS orders_with_reports
+    FROM daily_reports dr
+    ${clientJoin}
+    WHERE dr.status = 'active'
+    ${clientFilter}
   `;
-  const result = await pool.query(query);
+  const result = await pool.query(query, params);
   return result.rows[0];
 };
 
 // ========================================
 // KPIs CALCULADOS DESDE LA BD
 // ========================================
-const getKPIs = async () => {
+const getKPIs = async (client_id = null) => {
+  const clientFilter = client_id ? 'AND client_id = $1' : '';
+  const params = client_id ? [client_id] : [];
+
   // 1. Tasa de cumplimiento: órdenes completadas / total órdenes activas * 100
-  // CORREGIDO: Considera estados en español e inglés
   const completionQuery = `
     SELECT
       COUNT(*) AS total_orders,
@@ -297,10 +303,10 @@ const getKPIs = async () => {
       ) AS completion_rate
     FROM work_orders
     WHERE status NOT IN ('cancelled', 'deleted')
+    ${clientFilter}
   `;
 
   // 2. Días promedio por orden (desde fecha de creación hasta completada)
-  // CORREGIDO: Considera estados en español e inglés
   const avgDaysQuery = `
     SELECT
       ROUND(
@@ -314,10 +320,10 @@ const getKPIs = async () => {
       ) AS avg_days_per_order
     FROM work_orders
     WHERE status = 'completed'
+    ${clientFilter}
   `;
 
   // 3. Costo promedio por orden (basado en órdenes de trabajo con costo estimado)
-  // CORREGIDO: Excluye también deleted
   const avgCostQuery = `
     SELECT
       ROUND(AVG(estimated_cost)::numeric, 2) AS avg_cost_per_order
@@ -325,12 +331,13 @@ const getKPIs = async () => {
     WHERE status NOT IN ('cancelled', 'deleted')
       AND estimated_cost IS NOT NULL
       AND estimated_cost > 0
+    ${clientFilter}
   `;
 
   const [completionResult, avgDaysResult, avgCostResult] = await Promise.all([
-    pool.query(completionQuery),
-    pool.query(avgDaysQuery),
-    pool.query(avgCostQuery)
+    pool.query(completionQuery, params),
+    pool.query(avgDaysQuery, params),
+    pool.query(avgCostQuery, params)
   ]);
 
   return {
@@ -345,23 +352,29 @@ const getKPIs = async () => {
 // ========================================
 // PRODUCTIVIDAD DIARIA (CONFIGURABLE POR PERIODO)
 // ========================================
-const getDailyProductivity = async (days = 7) => {
+const getDailyProductivity = async (days = 7, client_id = null) => {
   // Validar y limitar el parámetro days
   const validDays = Math.min(Math.max(parseInt(days) || 7, 1), 365);
 
+  const clientJoin = client_id ? 'JOIN work_orders wo ON dr.order_id = wo.id' : '';
+  const clientFilter = client_id ? 'AND wo.client_id = $1' : '';
+  const params = client_id ? [client_id] : [];
+
   const query = `
     SELECT
-      report_date::date AS date,
+      dr.report_date::date AS date,
       COUNT(*) AS reports_count,
-      COUNT(DISTINCT technician) AS technicians_active,
-      ROUND(AVG(progress_percentage)::numeric, 0) AS avg_progress
-    FROM daily_reports
-    WHERE status = 'active'
-      AND report_date >= CURRENT_DATE - INTERVAL '${validDays} days'
-    GROUP BY report_date::date
-    ORDER BY report_date DESC
+      COUNT(DISTINCT dr.technician) AS technicians_active,
+      ROUND(AVG(dr.progress_percentage)::numeric, 0) AS avg_progress
+    FROM daily_reports dr
+    ${clientJoin}
+    WHERE dr.status = 'active'
+      AND dr.report_date >= CURRENT_DATE - INTERVAL '${validDays} days'
+      ${clientFilter}
+    GROUP BY dr.report_date::date
+    ORDER BY dr.report_date DESC
   `;
-  const result = await pool.query(query);
+  const result = await pool.query(query, params);
   return result.rows;
 };
 

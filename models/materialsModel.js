@@ -56,20 +56,20 @@ const getMaterialById = async (id) => {
 const createMaterial = async (materialData) => {
   const {
     code, name, category_id, unit, current_stock, minimum_stock, unit_price,
-    supplier, warehouse_location, user_id_registration
+    supplier, warehouse_location, image_url, user_id_registration
   } = materialData;
 
   const query = `
     INSERT INTO materials (
       code, name, category_id, unit, current_stock, minimum_stock, unit_price,
-      supplier, warehouse_location, status, user_id_registration, date_time_registration
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'available', $10, CURRENT_TIMESTAMP)
+      supplier, warehouse_location, image_url, status, user_id_registration, date_time_registration
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'available', $11, CURRENT_TIMESTAMP)
     RETURNING *
   `;
 
   const result = await pool.query(query, [
     code, name, category_id, unit, current_stock || 0, minimum_stock || 0,
-    unit_price || 0, supplier, warehouse_location, user_id_registration
+    unit_price || 0, supplier, warehouse_location, image_url || null, user_id_registration
   ]);
   return result.rows[0];
 };
@@ -77,7 +77,7 @@ const createMaterial = async (materialData) => {
 const updateMaterial = async (id, materialData) => {
   const {
     code, name, category_id, unit, current_stock, minimum_stock, unit_price,
-    supplier, warehouse_location, status, user_id_modification
+    supplier, warehouse_location, image_url, status, user_id_modification
   } = materialData;
 
   const query = `
@@ -91,17 +91,24 @@ const updateMaterial = async (id, materialData) => {
         unit_price = COALESCE($7, unit_price),
         supplier = COALESCE($8, supplier),
         warehouse_location = COALESCE($9, warehouse_location),
-        status = COALESCE($10, status),
-        user_id_modification = $11,
+        image_url = COALESCE($10, image_url),
+        status = COALESCE($11, status),
+        user_id_modification = $12,
         date_time_modification = CURRENT_TIMESTAMP
-    WHERE id = $12
+    WHERE id = $13
     RETURNING *
   `;
 
   const result = await pool.query(query, [
     code, name, category_id, unit, current_stock, minimum_stock, unit_price,
-    supplier, warehouse_location, status, user_id_modification, id
+    supplier, warehouse_location, image_url, status, user_id_modification, id
   ]);
+  return result.rows.length > 0 ? result.rows[0] : null;
+};
+
+const updateMaterialImage = async (id, imageUrl) => {
+  const query = `UPDATE materials SET image_url = $1 WHERE id = $2 RETURNING *`;
+  const result = await pool.query(query, [imageUrl, id]);
   return result.rows.length > 0 ? result.rows[0] : null;
 };
 
@@ -121,5 +128,6 @@ module.exports = {
   getMaterialById,
   createMaterial,
   updateMaterial,
+  updateMaterialImage,
   deleteMaterial
 };

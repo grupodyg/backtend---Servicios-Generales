@@ -1,5 +1,7 @@
-const { getAllTools, getToolById, createTool, updateTool, deleteTool } = require('../models/toolsModel');
+const { getAllTools, getToolById, createTool, updateTool, updateToolImage, deleteTool } = require('../models/toolsModel');
 const { filterSensitiveFields } = require('../utils/filterSensitiveFields');
+const { uploadFile, deleteFile } = require('../services/wasabiService');
+const { extractS3Key, generateS3Key } = require('../utils/fileUtils');
 
 const getAll = async (req, res) => {
   try {
@@ -32,11 +34,18 @@ const create = async (req, res) => {
     if (!code || !name) {
       return res.status(400).json({ error: 'Código y nombre son requeridos' });
     }
+
+    let imageUrl = null;
+    if (req.file) {
+      const key = generateS3Key('tools/images', req.file.originalname);
+      imageUrl = await uploadFile(req.file.buffer, key, req.file.mimetype);
+    }
+
     const toolData = {
       code, name, brand: brand || null, model: model || null, description: description || null,
       quantity: quantity || 1, value: value || null,
       admission_date: admission_date || null, category_id: category_id || null,
-      user_id_registration: req.user.id
+      image_url: imageUrl, user_id_registration: req.user.id
     };
     const newTool = await createTool(toolData);
     const filteredTool = filterSensitiveFields(newTool, req.user, 'tool');
@@ -53,10 +62,32 @@ const create = async (req, res) => {
 const update = async (req, res) => {
   try {
     const { id } = req.params;
-    const { code, name, brand, model, description, quantity, value, assigned_to_user_id, assignment_date, category_id, status } = req.body;
+    const { code, name, brand, model, description, quantity, value, assigned_to_user_id, assignment_date, category_id, status, remove_image } = req.body;
     const existingTool = await getToolById(id);
     if (!existingTool) return res.status(404).json({ error: 'Herramienta no encontrada' });
-    const toolData = { code, name, brand, model, description, quantity, value, assigned_to_user_id, assignment_date, category_id, status, user_id_modification: req.user.id };
+
+    let imageUrl = undefined;
+
+    if (req.file) {
+      const oldKey = extractS3Key(existingTool.image_url);
+      if (oldKey) {
+        try { await deleteFile(oldKey); } catch (e) { console.warn('No se pudo eliminar imagen anterior:', e.message); }
+      }
+      const key = generateS3Key('tools/images', req.file.originalname);
+      imageUrl = await uploadFile(req.file.buffer, key, req.file.mimetype);
+    } else if (remove_image === 'true') {
+      const oldKey = extractS3Key(existingTool.image_url);
+      if (oldKey) {
+        try { await deleteFile(oldKey); } catch (e) { console.warn('No se pudo eliminar imagen:', e.message); }
+      }
+      await updateToolImage(id, null);
+    }
+
+    const toolData = {
+      code, name, brand, model, description, quantity, value,
+      assigned_to_user_id, assignment_date, category_id, image_url: imageUrl,
+      status, user_id_modification: req.user.id
+    };
     const updatedTool = await updateTool(id, toolData);
     const filteredTool = filterSensitiveFields(updatedTool, req.user, 'tool');
     res.json({ mensaje: 'Herramienta actualizada exitosamente', data: filteredTool });

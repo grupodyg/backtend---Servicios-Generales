@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const verificarToken = require('../middleware/authMiddleware');
+const { uploadPhotos } = require('../middleware/uploadMiddleware');
 const { getAll, getById, create, update, remove } = require('../controllers/toolsController');
 
 const verificarRolesPermitidos = (req, res, next) => {
@@ -16,8 +17,8 @@ router.use(verificarRolesPermitidos);
 
 router.get('/', getAll);
 router.get('/:id', getById);
-router.post('/', create);
-router.put('/:id', update);
+router.post('/', uploadPhotos.single('image'), create);
+router.put('/:id', uploadPhotos.single('image'), update);
 router.delete('/:id', remove);
 
 module.exports = router;

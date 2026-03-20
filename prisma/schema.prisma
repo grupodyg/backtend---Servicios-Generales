@@ -267,6 +267,7 @@ model materials {
   user_id_modification   Int?
   date_time_modification DateTime?                @db.Timestamp(6)
   description            String?
+  image_url              String?                  @db.VarChar(500)
   material_request_items material_request_items[]
   material_categories    material_categories?     @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -629,6 +630,7 @@ model tools {
   user_id_modification   Int?
   date_time_modification DateTime?            @db.Timestamp(6)
   category_id            Int?
+  image_url              String?              @db.VarChar(500)
   tool_request_items     tool_request_items[]
   tool_categories        tool_categories?     @relation(fields: [category_id], references: [id], onUpdate: NoAction, map: "fk_tools_category")
   users                  users?               @relation(fields: [assigned_to_user_id], references: [id], onDelete: NoAction, onUpdate: NoAction)

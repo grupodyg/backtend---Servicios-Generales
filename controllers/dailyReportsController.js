@@ -332,18 +332,18 @@ const uploadDocument = async (req, res) => {
 // ========================================
 const getStatistics = async (req, res) => {
   try {
-    // Obtener periodo desde query params (días: 7, 30 o 90)
-    const { days = 7 } = req.query;
+    const { days = 7, client_id } = req.query;
     const periodDays = parseInt(days) || 7;
+    const clientId = client_id ? parseInt(client_id) : null;
 
     // Verificar si el usuario es admin (role_id = 1)
     const isAdmin = req.user?.role_id === 1;
 
     const [technicianStats, generalStats, dailyProductivity, kpis] = await Promise.all([
-      getStatisticsByTechnician(),
-      getReportStatistics(),
-      getDailyProductivity(periodDays),
-      getKPIs()
+      getStatisticsByTechnician(clientId),
+      getReportStatistics(clientId),
+      getDailyProductivity(periodDays, clientId),
+      getKPIs(clientId)
     ]);
 
     // Filtrar datos financieros sensibles si no es admin

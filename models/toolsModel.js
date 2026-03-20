@@ -64,20 +64,20 @@ const getToolById = async (id) => {
 const createTool = async (toolData) => {
   const {
     code, name, brand, model, description, quantity, value,
-    admission_date, category_id, user_id_registration
+    admission_date, category_id, image_url, user_id_registration
   } = toolData;
 
   const query = `
     INSERT INTO tools (
       code, name, brand, model, description, quantity, value,
-      admission_date, category_id, status, user_id_registration, date_time_registration
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'available', $10, CURRENT_TIMESTAMP)
+      admission_date, category_id, image_url, status, user_id_registration, date_time_registration
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'available', $11, CURRENT_TIMESTAMP)
     RETURNING *
   `;
 
   const result = await pool.query(query, [
     code, name, brand, model, description, quantity || 1, value,
-    admission_date, category_id || null, user_id_registration
+    admission_date, category_id || null, image_url || null, user_id_registration
   ]);
   return result.rows[0];
 };
@@ -85,7 +85,7 @@ const createTool = async (toolData) => {
 const updateTool = async (id, toolData) => {
   const {
     code, name, brand, model, description, quantity, value,
-    assigned_to_user_id, assignment_date, category_id, status, user_id_modification
+    assigned_to_user_id, assignment_date, category_id, image_url, status, user_id_modification
   } = toolData;
 
   const query = `
@@ -100,16 +100,17 @@ const updateTool = async (id, toolData) => {
         assigned_to_user_id = COALESCE($8, assigned_to_user_id),
         assignment_date = COALESCE($9, assignment_date),
         category_id = COALESCE($10, category_id),
-        status = COALESCE($11, status),
-        user_id_modification = $12,
+        image_url = COALESCE($11, image_url),
+        status = COALESCE($12, status),
+        user_id_modification = $13,
         date_time_modification = CURRENT_TIMESTAMP
-    WHERE id = $13
+    WHERE id = $14
     RETURNING *
   `;
 
   const result = await pool.query(query, [
     code, name, brand, model, description, quantity, value,
-    assigned_to_user_id, assignment_date, category_id, status, user_id_modification, id
+    assigned_to_user_id, assignment_date, category_id, image_url, status, user_id_modification, id
   ]);
   return result.rows.length > 0 ? result.rows[0] : null;
 };
@@ -125,4 +126,10 @@ const deleteTool = async (id, user_id) => {
   return result.rows.length > 0 ? result.rows[0] : null;
 };
 
-module.exports = { getAllTools, getToolById, createTool, updateTool, deleteTool };
+const updateToolImage = async (id, imageUrl) => {
+  const query = `UPDATE tools SET image_url = $1 WHERE id = $2 RETURNING *`;
+  const result = await pool.query(query, [imageUrl, id]);
+  return result.rows.length > 0 ? result.rows[0] : null;
+};
+
+module.exports = { getAllTools, getToolById, createTool, updateTool, updateToolImage, deleteTool };

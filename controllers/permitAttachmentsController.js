@@ -4,8 +4,8 @@ const path = require('path');
 
 const getAll = async (req, res) => {
   try {
-    const { status = 'active', permit_id, uploaded_by } = req.query;
-    const attachments = await getAllPermitAttachments({ status, permit_id, uploaded_by });
+    const { status = 'active', permit_id } = req.query;
+    const attachments = await getAllPermitAttachments({ status, permit_id });
     res.json(attachments);
   } catch (error) {
     console.error('Error al obtener adjuntos de permisos:', error);
@@ -27,8 +27,8 @@ const getById = async (req, res) => {
 
 const create = async (req, res) => {
   try {
-    const { permit_id, file_url, file_name, file_type, uploaded_by, status } = req.body;
-    const attachmentData = { permit_id, file_url, file_name, file_type, uploaded_by, status, user_id_registration: req.user.id };
+    const { permit_id, name, file_type, size, url } = req.body;
+    const attachmentData = { permit_id, name, file_type, size: size || null, url, status: 'active', user_id_registration: req.user.id };
     const newAttachment = await createPermitAttachment(attachmentData);
     res.status(201).json({ mensaje: 'Adjunto de permiso creado exitosamente', data: newAttachment });
   } catch (error) {
@@ -73,7 +73,6 @@ const uploadFileHandler = async (req, res) => {
       return res.status(400).json({ error: 'No se subió archivo' });
     }
 
-    const ext = path.extname(req.file.originalname);
     const key = `permit-attachments/${Date.now()}_${Math.random().toString(36).substring(7)}_${req.file.originalname}`;
     const fileUrl = await uploadFile(req.file.buffer, key, req.file.mimetype);
 
