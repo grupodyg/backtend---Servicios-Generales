@@ -258,14 +258,31 @@ const updateUser = async (id, userData) => {
  * @returns {Promise<Object|null>} Usuario eliminado o null
  */
 const deleteUser = async (id, user_id) => {
-  const query = `
-    DELETE FROM users
-    WHERE id = $1
-    RETURNING id, name, email, role_id, status
-  `;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  const result = await pool.query(query, [id]);
-  return result.rows.length > 0 ? result.rows[0] : null;
+    // Eliminar registros dependientes
+    await client.query('DELETE FROM employee_permits WHERE employee_id = $1', [id]);
+    await client.query('DELETE FROM notifications WHERE user_id = $1', [id]);
+    await client.query('DELETE FROM payroll_slips WHERE employee_id = $1', [id]);
+    await client.query('UPDATE tools SET assigned_to_user_id = NULL WHERE assigned_to_user_id = $1', [id]);
+    await client.query('UPDATE material_requests SET technician_id = NULL WHERE technician_id = $1', [id]);
+    await client.query('UPDATE tool_requests SET technician_id = NULL WHERE technician_id = $1', [id]);
+
+    const result = await client.query(
+      `DELETE FROM users WHERE id = $1 RETURNING id, name, email, role_id, status`,
+      [id]
+    );
+
+    await client.query('COMMIT');
+    return result.rows.length > 0 ? result.rows[0] : null;
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 };
 
 /**
