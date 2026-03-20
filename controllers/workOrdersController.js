@@ -73,7 +73,8 @@ const create = async (req, res) => {
       estimated_cost, assigned_technician, requested_by, progress_percentage,
       approval_status, estimated_materials, estimated_time, required_tools,
       gps_coordinates, project_name, personnel_list, purchase_order_number,
-      purchase_order_document, solpe, resources, selected_materials, selected_tools
+      purchase_order_document, solpe, resources, selected_materials, selected_tools,
+      is_emergency
     } = req.body;
 
     // Validaciones básicas
@@ -99,7 +100,8 @@ const create = async (req, res) => {
       project_name: project_name || null, personnel_list: personnel_list || null,
       purchase_order_number: purchase_order_number || null, purchase_order_document: purchase_order_document || null,
       solpe: solpe || null, resources: resources || null, selected_materials: selected_materials || null,
-      selected_tools: selected_tools || null, user_id_registration: req.user.id
+      selected_tools: selected_tools || null, user_id_registration: req.user.id,
+      is_emergency: is_emergency || false
     };
 
     const newWorkOrder = await createWorkOrder(orderData);

@@ -98,7 +98,7 @@ const createWorkOrder = async (orderData) => {
     approval_status, estimated_materials, estimated_time, required_tools,
     gps_coordinates, project_name, personnel_list, purchase_order_number,
     purchase_order_document, solpe, resources, selected_materials,
-    selected_tools, user_id_registration
+    selected_tools, user_id_registration, is_emergency
   } = orderData;
 
   // Obtener timestamp actual en zona horaria de Lima
@@ -113,11 +113,11 @@ const createWorkOrder = async (orderData) => {
       gps_coordinates, project_name, personnel_list, purchase_order_number,
       purchase_order_document, first_visit_completed, solpe, resources,
       selected_materials, selected_tools, status, user_id_registration,
-      date_time_registration
+      date_time_registration, is_emergency
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
       $17, $18, $19, $20, $21, $22, $23, $24, false, $25, $26, $27, $28,
-      'pending', $29, $30
+      'pending', $29, $30, $31
     )
     RETURNING *
   `;
@@ -142,7 +142,8 @@ const createWorkOrder = async (orderData) => {
     toJson(resources),                // JSONB - serializar
     toJson(selected_materials),       // JSONB - serializar
     toJson(selected_tools),           // JSONB - serializar
-    user_id_registration, currentTs
+    user_id_registration, currentTs,
+    is_emergency || false
   ]);
   return result.rows[0];
 };
