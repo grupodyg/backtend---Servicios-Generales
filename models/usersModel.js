@@ -58,6 +58,8 @@ const getAllUsers = async (filters = {}) => {
     query += ` AND u.status = $${paramIndex}`;
     params.push(status);
     paramIndex++;
+  } else {
+    query += ` AND u.status != 'deleted'`;
   }
 
   if (role_id) {
@@ -252,37 +254,24 @@ const updateUser = async (id, userData) => {
 };
 
 /**
- * Eliminar un usuario (hard delete)
+ * Eliminar un usuario (soft delete - cambia status a 'deleted')
  * @param {number} id - ID del usuario
  * @param {number} user_id - ID del usuario que realiza la acción
  * @returns {Promise<Object|null>} Usuario eliminado o null
  */
 const deleteUser = async (id, user_id) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
+  const query = `
+    UPDATE users
+    SET
+      status = 'deleted',
+      user_id_modification = $2,
+      date_time_modification = CURRENT_TIMESTAMP
+    WHERE id = $1
+    RETURNING id, name, email, role_id, status
+  `;
 
-    // Eliminar registros dependientes
-    await client.query('DELETE FROM employee_permits WHERE employee_id = $1', [id]);
-    await client.query('DELETE FROM notifications WHERE user_id = $1', [id]);
-    await client.query('DELETE FROM payroll_slips WHERE employee_id = $1', [id]);
-    await client.query('UPDATE tools SET assigned_to_user_id = NULL WHERE assigned_to_user_id = $1', [id]);
-    await client.query('UPDATE material_requests SET technician_id = NULL WHERE technician_id = $1', [id]);
-    await client.query('UPDATE tool_requests SET technician_id = NULL WHERE technician_id = $1', [id]);
-
-    const result = await client.query(
-      `DELETE FROM users WHERE id = $1 RETURNING id, name, email, role_id, status`,
-      [id]
-    );
-
-    await client.query('COMMIT');
-    return result.rows.length > 0 ? result.rows[0] : null;
-  } catch (error) {
-    await client.query('ROLLBACK');
-    throw error;
-  } finally {
-    client.release();
-  }
+  const result = await pool.query(query, [id, user_id]);
+  return result.rows.length > 0 ? result.rows[0] : null;
 };
 
 /**

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const verificarToken = require('../middleware/authMiddleware');
+const verificarAdmin = require('../middleware/adminMiddleware');
 const {
   getAll,
   getById,
@@ -10,18 +11,10 @@ const {
   remove
 } = require('../controllers/specialtyRatesController');
 
-// Middleware para validar los roles permitidos
-const verificarRolesPermitidos = (req, res, next) => {
-  const rol = req.user?.role_id;
-  if (![1, 2, 3, 4].includes(rol)) {
-    return res.status(403).json({ mensaje: 'Acceso denegado: Rol no autorizado' });
-  }
-  next();
-};
-
-// Todas las rutas requieren autenticacion
+// Todas las rutas requieren autenticacion + ser administrador
+// Solo el admin puede ver y gestionar tarifas/precios
 router.use(verificarToken);
-router.use(verificarRolesPermitidos);
+router.use(verificarAdmin);
 
 // GET /api/specialty-rates - Obtener todas las tarifas de especialidad
 router.get('/', getAll);

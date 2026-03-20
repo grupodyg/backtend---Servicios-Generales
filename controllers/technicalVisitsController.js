@@ -9,6 +9,21 @@ const {
 } = require('../models/technicalVisitsModel');
 const { checkTechnicalVisitDependencies, logDeletion } = require('../services/deletionService');
 
+// Elimina datos de precios del personnel_list para usuarios no-admin
+const stripPriceData = (visit) => {
+  if (!visit) return visit;
+  if (visit.personnel_list) {
+    let personnel = visit.personnel_list;
+    if (typeof personnel === 'string') {
+      try { personnel = JSON.parse(personnel); } catch (e) { return visit; }
+    }
+    if (Array.isArray(personnel)) {
+      visit.personnel_list = personnel.map(({ tarifaDiaria, totalCosto, ...rest }) => rest);
+    }
+  }
+  return visit;
+};
+
 const getAll = async (req, res) => {
   try {
     const { status = 'all', client_id, assigned_technician, visit_date_from, visit_date_to, search } = req.query;
@@ -39,6 +54,12 @@ const getAll = async (req, res) => {
       console.log(`✅ [DEBUG] Visitas totales encontradas: ${visits.length}`);
     }
 
+    // Si no es admin, eliminar datos de precios del personal
+    const isAdmin = req.user?.role === 'admin';
+    if (!isAdmin) {
+      visits = visits.map(stripPriceData);
+    }
+
     res.json(visits);
   } catch (error) {
     console.error('Error al obtener visitas técnicas:', error);
@@ -49,8 +70,15 @@ const getAll = async (req, res) => {
 const getById = async (req, res) => {
   try {
     const { id } = req.params;
-    const visit = await getTechnicalVisitById(id);
+    let visit = await getTechnicalVisitById(id);
     if (!visit) return res.status(404).json({ error: 'Visita técnica no encontrada' });
+
+    // Si no es admin, eliminar datos de precios del personal
+    const isAdmin = req.user?.role === 'admin';
+    if (!isAdmin) {
+      visit = stripPriceData(visit);
+    }
+
     res.json(visit);
   } catch (error) {
     console.error('Error al obtener visita técnica:', error);
@@ -99,6 +127,19 @@ const update = async (req, res) => {
     if (!existingVisit) return res.status(404).json({ error: 'Visita técnica no encontrada' });
 
     const visitData = { ...req.body, user_id_modification: req.user.id };
+
+    // Si no es admin, eliminar datos de precios del personnel_list enviado
+    const isAdmin = req.user?.role === 'admin';
+    if (!isAdmin && visitData.personnel_list) {
+      let personnel = visitData.personnel_list;
+      if (typeof personnel === 'string') {
+        try { personnel = JSON.parse(personnel); } catch (e) { /* ignore */ }
+      }
+      if (Array.isArray(personnel)) {
+        visitData.personnel_list = personnel.map(({ tarifaDiaria, totalCosto, ...rest }) => rest);
+      }
+    }
+
     console.log('🔄 visitData to update:', JSON.stringify(visitData, null, 2));
 
     const updatedVisit = await updateTechnicalVisit(id, visitData);
