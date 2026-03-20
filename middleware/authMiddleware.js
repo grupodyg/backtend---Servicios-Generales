@@ -14,7 +14,7 @@ function verificarToken(req, res, next) {
     req.user = payload; // Puedes acceder desde los controladores
     next();
   } catch (err) {
-    return res.status(403).json({ error: 'Token inválido o expirado' });
+    return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
 
