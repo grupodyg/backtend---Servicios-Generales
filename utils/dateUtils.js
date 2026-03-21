@@ -29,7 +29,7 @@ const getCurrentDate = () => {
 const getCurrentTimestamp = () => {
   const now = new Date();
   // Obtener componentes de fecha/hora en timezone de Lima
-  const options = { timeZone: TIMEZONE, hour12: false };
+  const options = { timeZone: TIMEZONE, hourCycle: 'h23' };
   const parts = new Intl.DateTimeFormat('en-CA', {
     ...options,
     year: 'numeric',
@@ -76,7 +76,7 @@ const getCurrentTime = () => {
     timeZone: TIMEZONE,
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false
+    hourCycle: 'h23'
   });
 };
 
@@ -276,7 +276,7 @@ const formatDateTimeFromDB = (date) => {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-    hour12: false
+    hourCycle: 'h23'
   });
 };
 
