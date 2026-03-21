@@ -1,4 +1,5 @@
 const { getAllToolRequests, getToolRequestById, createToolRequest, createToolRequestItems, updateToolRequest, deleteToolRequest } = require('../models/toolRequestsModel');
+const { getCurrentTimestamp } = require('../utils/dateUtils');
 
 const getAll = async (req, res) => {
   try {
@@ -32,7 +33,7 @@ const create = async (req, res) => {
       order_id: order_id || null,
       technician_id: technician_id || null,
       technician_name: technician_name || null,
-      request_date: request_date || new Date().toISOString(),
+      request_date: request_date || getCurrentTimestamp(),
       return_date: return_date || null,
       observations: observations || null,
       user_id_registration: req.user.id

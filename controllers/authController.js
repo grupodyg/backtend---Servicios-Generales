@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { findUserByEmail, updateLastActivity } = require('../models/authModel');
+const { getCurrentTimestamp } = require('../utils/dateUtils');
 
 const login = async (req, res) => {
   const { email, password } = req.body;
@@ -28,7 +29,7 @@ const login = async (req, res) => {
     await updateLastActivity(user.id);
 
     // Actualizar el objeto user con la nueva última actividad
-    const currentTimestamp = new Date().toISOString();
+    const currentTimestamp = getCurrentTimestamp();
 
     // Generar token JWT
     const token = jwt.sign(

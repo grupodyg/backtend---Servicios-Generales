@@ -11,7 +11,7 @@ const {
 } = require('../models/dailyReportsModel');
 const { addWorkOrderHistoryEntry, updateWorkOrderProgress } = require('../models/workOrdersModel');
 const pool = require('../config/db');
-const { getCurrentTimestamp } = require('../utils/dateUtils');
+const { getCurrentTimestamp, getCurrentDate } = require('../utils/dateUtils');
 const { uploadFile } = require('../services/wasabiService');
 const path = require('path');
 
@@ -59,8 +59,8 @@ const create = async (req, res) => {
     // ========================================
     if (report_date) {
       const fechaReporte = new Date(report_date);
-      const hoy = new Date();
-      hoy.setHours(23, 59, 59, 999); // Fin del día actual
+      const hoy = getCurrentDate();
+      hoy.setHours(23, 59, 59, 999); // Fin del día actual (hora Lima)
       if (fechaReporte > hoy) {
         return res.status(400).json({ error: 'No se pueden crear reportes con fecha futura' });
       }

@@ -132,7 +132,7 @@ const getPhotosByVisit = async (req, res) => {
       url: item.url,
       name: path.basename(item.key),
       size: item.size,
-      uploadedAt: item.lastModified ? item.lastModified.toISOString() : new Date().toISOString()
+      uploadedAt: item.lastModified ? item.lastModified.toISOString() : getCurrentTimestamp()
     }));
 
     res.json({ data: visitPhotos });
