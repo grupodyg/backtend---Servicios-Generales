@@ -40,6 +40,7 @@ const communicationsRoutes = require('./routes/communicationsRoutes');
 const payrollSlipsRoutes = require('./routes/payrollSlipsRoutes');
 const permitAttachmentsRoutes = require('./routes/permitAttachmentsRoutes');
 const filesRoutes = require('./routes/filesRoutes');
+const backupRoutes = require('./routes/backupRoutes');
 
 const app = express();
 const PORT = process.env.PORT;
@@ -120,6 +121,9 @@ app.use('/api/permit-attachments', permitAttachmentsRoutes);
 
 // Archivos S3 (proxy)
 app.use('/api/files', filesRoutes);
+
+// Backups de base de datos
+app.use('/api/backups', backupRoutes);
 
 // Ruta de prueba
 app.get('/api/ping', async (req, res) => {

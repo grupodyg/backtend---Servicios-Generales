@@ -11,6 +11,7 @@ const s3Client = new S3Client({
 });
 
 const BUCKET = process.env.WASABI_BUCKET_UPLOADS || 'dig-ssgg-uploads';
+const BUCKET_BACKUPS = process.env.WASABI_BUCKET_BACKUPS || 'dig-ssgg-backups';
 
 // Retorna URL proxy del backend: /api/files/{key}
 const getProxyUrl = (key) => {
@@ -62,4 +63,48 @@ const listFiles = async (prefix) => {
   }));
 };
 
-module.exports = { uploadFile, deleteFile, getFile, listFiles, getProxyUrl };
+// ── Funciones para el bucket de BACKUPS ──
+
+const uploadBackup = async (buffer, key, mimetype) => {
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_BACKUPS,
+    Key: key,
+    Body: buffer,
+    ContentType: mimetype
+  });
+  await s3Client.send(command);
+};
+
+const getBackup = async (key) => {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET_BACKUPS,
+    Key: key
+  });
+  return await s3Client.send(command);
+};
+
+const listBackups = async (prefix) => {
+  const command = new ListObjectsV2Command({
+    Bucket: BUCKET_BACKUPS,
+    Prefix: prefix
+  });
+  const response = await s3Client.send(command);
+  return (response.Contents || []).map(item => ({
+    key: item.Key,
+    size: item.Size,
+    lastModified: item.LastModified
+  }));
+};
+
+const deleteBackup = async (key) => {
+  const command = new DeleteObjectCommand({
+    Bucket: BUCKET_BACKUPS,
+    Key: key
+  });
+  await s3Client.send(command);
+};
+
+module.exports = {
+  uploadFile, deleteFile, getFile, listFiles, getProxyUrl,
+  uploadBackup, getBackup, listBackups, deleteBackup
+};

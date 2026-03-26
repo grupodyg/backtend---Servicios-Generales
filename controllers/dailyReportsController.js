@@ -266,15 +266,27 @@ const remove = async (req, res) => {
 // ========================================
 // SUBIR DOCUMENTO A UN REPORTE
 // ========================================
+const DOCUMENT_FIELD_MAP = {
+  ats: 'ats_document',
+  ptr: 'ptr_document',
+  environmental_aspects: 'environmental_aspects_document'
+};
+
 const uploadDocument = async (req, res) => {
   try {
     const { id } = req.params;
-    const { docType } = req.body; // 'ats', 'ptr', 'environmental_aspects'
+    const { docType } = req.body;
 
     if (!req.file) {
       return res.status(400).json({ error: 'No se subió archivo' });
     }
 
+    const fieldName = DOCUMENT_FIELD_MAP[docType];
+    if (!fieldName) {
+      return res.status(400).json({ error: 'Tipo de documento inválido' });
+    }
+
+    // Subir archivo a S3
     const ext = path.extname(req.file.originalname);
     const key = `report-documents/${docType}_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
     const docUrl = await uploadFile(req.file.buffer, key, req.file.mimetype);
@@ -287,16 +299,39 @@ const uploadDocument = async (req, res) => {
       uploadedAt: getCurrentTimestamp()
     };
 
-    const fieldMap = {
-      ats: 'ats_document',
-      ptr: 'ptr_document',
-      environmental_aspects: 'environmental_aspects_document'
-    };
+    // Leer documentos existentes y APPEND al array
+    // fieldName proviene de DOCUMENT_FIELD_MAP (constante interna, no input de usuario)
+    const currentResult = await pool.query(
+      `SELECT ${fieldName} FROM daily_reports WHERE id = $1`,
+      [id]
+    );
 
-    const fieldName = fieldMap[docType];
-    if (!fieldName) {
-      return res.status(400).json({ error: 'Tipo de documento inválido' });
+    if (currentResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Reporte no encontrado' });
     }
+
+    let currentValue = currentResult.rows[0][fieldName];
+    let docsArray = [];
+
+    if (currentValue) {
+      // Si viene como string (posible según configuración del driver), parsear primero
+      if (typeof currentValue === 'string') {
+        try {
+          currentValue = JSON.parse(currentValue);
+        } catch (e) {
+          currentValue = null;
+        }
+      }
+
+      if (Array.isArray(currentValue)) {
+        docsArray = currentValue;
+      } else if (currentValue && typeof currentValue === 'object') {
+        // Compatibilidad legacy: objeto singular → convertir a array
+        docsArray = [currentValue];
+      }
+    }
+
+    docsArray.push(documentData);
 
     const query = `
       UPDATE daily_reports
@@ -308,14 +343,10 @@ const uploadDocument = async (req, res) => {
     `;
 
     const result = await pool.query(query, [
-      JSON.stringify(documentData),
+      JSON.stringify(docsArray),
       req.user.id,
       id
     ]);
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Reporte no encontrado' });
-    }
 
     res.json({
       mensaje: 'Documento subido exitosamente',
