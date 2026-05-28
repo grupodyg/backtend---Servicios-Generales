@@ -305,7 +305,7 @@ const changePassword = async (id, newPassword, user_id_modification) => {
  * @returns {Promise<boolean>} true si existe, false si no
  */
 const emailExists = async (email, excludeId = null) => {
-  let query = 'SELECT id FROM users WHERE email = $1';
+  let query = "SELECT id FROM users WHERE email = $1 AND status != 'deleted'";
   const params = [email];
 
   if (excludeId) {

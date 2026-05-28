@@ -555,7 +555,7 @@ model technical_visits {
   generated_order                String?                       @db.VarChar(50)
   order_generation_date          DateTime?                     @db.Timestamp(6)
   approval                       Json?
-  solpe                          String?                       @db.VarChar(15)
+  solpe                          String?                       @db.VarChar(30)
   status                         String?                       @default("pending") @db.VarChar(20)
   user_id_registration           Int?
   date_time_registration         DateTime?                     @default(now()) @db.Timestamp(6)
@@ -711,7 +711,7 @@ model work_orders {
   resources                Json?
   selected_materials       Json?
   selected_tools           Json?
-  solpe                    String?              @db.VarChar(15)
+  solpe                    String?              @db.VarChar(30)
   resources_update_date    DateTime?            @db.Timestamp(6)
   status                   String?              @default("pending") @db.VarChar(20)
   user_id_registration     Int?
@@ -782,4 +782,11 @@ model work_order_history {
 
   @@index([created_at], map: "idx_work_order_history_created_at")
   @@index([work_order_id], map: "idx_work_order_history_order_id")
+}
+
+model app_settings {
+  key                    String    @id @db.VarChar(100)
+  value                  String?
+  date_time_modification DateTime? @default(now()) @db.Timestamp(6)
+  user_id_modification   Int?
 }

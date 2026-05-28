@@ -41,6 +41,7 @@ const payrollSlipsRoutes = require('./routes/payrollSlipsRoutes');
 const permitAttachmentsRoutes = require('./routes/permitAttachmentsRoutes');
 const filesRoutes = require('./routes/filesRoutes');
 const backupRoutes = require('./routes/backupRoutes');
+const appSettingsRoutes = require('./routes/appSettingsRoutes');
 
 const app = express();
 const PORT = process.env.PORT;
@@ -124,6 +125,9 @@ app.use('/api/files', filesRoutes);
 
 // Backups de base de datos
 app.use('/api/backups', backupRoutes);
+
+// Configuración global de la aplicación (branding)
+app.use('/api/app-settings', appSettingsRoutes);
 
 // Ruta de prueba
 app.get('/api/ping', async (req, res) => {
