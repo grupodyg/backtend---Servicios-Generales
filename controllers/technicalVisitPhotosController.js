@@ -8,6 +8,22 @@ const { uploadFile, deleteFile, listFiles } = require('../services/wasabiService
  * Las fotos se suben a S3: technical-visits/{visitId}/{filename}
  */
 
+// Deriva la extensión del archivo: usa la del nombre original o, si no tiene
+// (p. ej. blobs comprimidos cuyo originalname es "blob"), la deriva del mimetype
+const getFileExtension = (originalname, mimetype) => {
+  const ext = path.extname(originalname);
+  if (ext) return ext;
+  const mimeToExt = {
+    'image/jpeg': '.jpg',
+    'image/jpg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'image/gif': '.gif',
+    'image/bmp': '.bmp'
+  };
+  return mimeToExt[mimetype] || '';
+};
+
 // Función auxiliar para validar que la visita existe
 const visitExists = async (visitId) => {
   const result = await pool.query(
@@ -37,7 +53,7 @@ const uploadPhotos = async (req, res) => {
     for (let index = 0; index < req.files.length; index++) {
       const file = req.files[index];
       const tipo = req.body.tipo || 'photo';
-      const ext = path.extname(file.originalname);
+      const ext = getFileExtension(file.originalname, file.mimetype);
       const filename = `${tipo}_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
       const key = `technical-visits/${visitId}/${filename}`;
 
@@ -79,7 +95,7 @@ const uploadSinglePhoto = async (req, res) => {
     }
 
     const tipo = req.body.tipo || 'photo';
-    const ext = path.extname(req.file.originalname);
+    const ext = getFileExtension(req.file.originalname, req.file.mimetype);
     const filename = `${tipo}_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
     const key = `technical-visits/${visitId}/${filename}`;
 

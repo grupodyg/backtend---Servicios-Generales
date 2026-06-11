@@ -246,6 +246,7 @@ async function main() {
   console.log('Tablas que se configuran desde el frontend:');
   console.log('  - Tipos de servicio    (Configuracion)');
   console.log('  - Condiciones de pago  (Configuracion)');
+  console.log('  - Branding del login   (Configuracion)');
   console.log('  - Categorias materiales (Materiales)');
   console.log('  - Categorias herram.   (Herramientas)');
   console.log('========================================\n');
