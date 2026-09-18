@@ -2,27 +2,12 @@ const path = require('path');
 const { getCurrentTimestamp } = require('../utils/dateUtils');
 const pool = require('../config/db');
 const { uploadFile, deleteFile, listFiles } = require('../services/wasabiService');
+const { getFileExtension } = require('../utils/fileUtils');
 
 /**
  * Controlador para manejar fotos de visitas técnicas
  * Las fotos se suben a S3: technical-visits/{visitId}/{filename}
  */
-
-// Deriva la extensión del archivo: usa la del nombre original o, si no tiene
-// (p. ej. blobs comprimidos cuyo originalname es "blob"), la deriva del mimetype
-const getFileExtension = (originalname, mimetype) => {
-  const ext = path.extname(originalname);
-  if (ext) return ext;
-  const mimeToExt = {
-    'image/jpeg': '.jpg',
-    'image/jpg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'image/gif': '.gif',
-    'image/bmp': '.bmp'
-  };
-  return mimeToExt[mimetype] || '';
-};
 
 // Función auxiliar para validar que la visita existe
 const visitExists = async (visitId) => {

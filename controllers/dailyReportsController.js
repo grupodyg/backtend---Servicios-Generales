@@ -13,7 +13,7 @@ const { addWorkOrderHistoryEntry, updateWorkOrderProgress } = require('../models
 const pool = require('../config/db');
 const { getCurrentTimestamp, getCurrentDate } = require('../utils/dateUtils');
 const { uploadFile } = require('../services/wasabiService');
-const path = require('path');
+const { getFileExtension } = require('../utils/fileUtils');
 
 const getAll = async (req, res) => {
   try {
@@ -287,7 +287,7 @@ const uploadDocument = async (req, res) => {
     }
 
     // Subir archivo a S3
-    const ext = path.extname(req.file.originalname);
+    const ext = getFileExtension(req.file.originalname, req.file.mimetype);
     const key = `report-documents/${docType}_${Date.now()}_${Math.random().toString(36).substring(7)}${ext}`;
     const docUrl = await uploadFile(req.file.buffer, key, req.file.mimetype);
 

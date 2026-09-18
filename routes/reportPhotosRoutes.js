@@ -27,7 +27,7 @@ router.use(verificarRolesPermitidos);
 // ========================================
 
 // Upload de fotos (múltiples)
-router.post('/report/:reportId', uploadPhotos.array('photos', 10), uploadController);
+router.post('/report/:reportId', uploadPhotos.array('photos'), uploadController);
 
 // Obtener fotos de un reporte
 router.get('/report/:reportId', getByReport);

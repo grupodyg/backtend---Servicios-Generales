@@ -36,7 +36,7 @@ router.get('/:id/can-delete', verificarAdmin, checkCanDelete);
 // RUTAS DE FOTOS PARA VISITAS TÉCNICAS
 // ========================================
 // POST /api/technical-visits/:id/photos - Subir múltiples fotos
-router.post('/:id/photos', uploadTechnicalVisitPhotos.array('photos', 20), uploadPhotos);
+router.post('/:id/photos', uploadTechnicalVisitPhotos.array('photos'), uploadPhotos);
 
 // POST /api/technical-visits/:id/photo - Subir una sola foto
 router.post('/:id/photo', uploadTechnicalVisitPhotos.single('photo'), uploadSinglePhoto);

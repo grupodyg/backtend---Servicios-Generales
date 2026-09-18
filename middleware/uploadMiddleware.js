@@ -16,9 +16,10 @@ const imageFilter = (req, file, cb) => {
   }
 };
 
+// Un "documento" es un PDF o cualquier imagen: en obra se adjuntan tanto
+// escaneos como fotografías del papel tomadas con el móvil.
 const documentFilter = (req, file, cb) => {
-  const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/jpg'];
-  if (allowedTypes.includes(file.mimetype)) {
+  if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
     cb(new Error('Solo PDF o imágenes'), false);
@@ -28,25 +29,24 @@ const documentFilter = (req, file, cb) => {
 // ========================================
 // EXPORTAR CONFIGURACIONES
 // ========================================
+// Sin `limits`: las fotografías se suben sin comprimir y una foto de móvil
+// supera con facilidad cualquier tope fijo. multer sin `limits` no acota
+// ni el tamaño ni el número de archivos.
 module.exports = {
   uploadPhotos: multer({
     storage: memoryStorage,
-    fileFilter: imageFilter,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+    fileFilter: imageFilter
   }),
   uploadDocuments: multer({
     storage: memoryStorage,
-    fileFilter: documentFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+    fileFilter: documentFilter
   }),
   uploadTechnicalVisitPhotos: multer({
     storage: memoryStorage,
-    fileFilter: imageFilter,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+    fileFilter: imageFilter
   }),
   uploadTechnicalVisitDocuments: multer({
     storage: memoryStorage,
-    fileFilter: documentFilter,
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB
+    fileFilter: documentFilter
   })
 };
