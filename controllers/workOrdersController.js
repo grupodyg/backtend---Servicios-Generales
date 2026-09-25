@@ -9,8 +9,51 @@ const {
   addWorkOrderHistoryEntry
 } = require('../models/workOrdersModel');
 const { getUserById } = require('../models/usersModel');
+const { getAllFinalReports, updateFinalReport } = require('../models/finalReportsModel');
 const { checkWorkOrderDependencies, logDeletion } = require('../services/deletionService');
 const { filterSensitiveFields } = require('../utils/filterSensitiveFields');
+const {
+  isValidSignatureConfig,
+  normalizeSignatureConfig,
+  computeSignatureStatus,
+  COMPLETED_STATUS
+} = require('../utils/signatureFlow');
+
+const ADMIN_ROLE_ID = 1;
+
+/**
+ * Solo el administrador define qué firmas del informe final son obligatorias.
+ * Para cualquier otro rol el campo se ignora (el COALESCE del modelo conserva el valor actual).
+ * Devuelve { config } con la configuración normalizada, { config: undefined } si no aplica,
+ * o { error } si el administrador envió un formato inválido.
+ */
+const resolveSignatureConfig = (req, rawConfig) => {
+  if (rawConfig === undefined || rawConfig === null || req.user.role_id !== ADMIN_ROLE_ID) {
+    return { config: undefined };
+  }
+  if (!isValidSignatureConfig(rawConfig)) {
+    return { error: 'signature_config inválido: se esperan las claves tecnico, supervisor y administrador con valores booleanos' };
+  }
+  return { config: normalizeSignatureConfig(rawConfig) };
+};
+
+/**
+ * Si el administrador cambia las firmas obligatorias con un informe final ya generado y
+ * todavía pendiente, se recalcula el estado del informe para que el flujo continúe con la
+ * firma correcta (o quede completado si ya no falta ninguna obligatoria).
+ * Los informes completados o cancelados no se tocan.
+ */
+const syncPendingFinalReports = async (orderId, signatureConfig, userId) => {
+  const reports = await getAllFinalReports({ order_id: orderId });
+  const pendingReports = reports.filter(r => r.status !== COMPLETED_STATUS && r.status !== 'cancelled');
+
+  for (const report of pendingReports) {
+    const { status, blocked } = computeSignatureStatus(signatureConfig, report.signatures);
+    if (status !== report.status || blocked !== Boolean(report.blocked)) {
+      await updateFinalReport(report.id, { status, blocked, user_id_modification: userId });
+    }
+  }
+};
 
 const getAll = async (req, res) => {
   try {
@@ -74,12 +117,17 @@ const create = async (req, res) => {
       approval_status, estimated_materials, estimated_time, required_tools,
       gps_coordinates, project_name, personnel_list, purchase_order_number,
       purchase_order_document, solpe, resources, selected_materials, selected_tools,
-      is_emergency
+      is_emergency, signature_config
     } = req.body;
 
     // Validaciones básicas
     if (!service_type) {
       return res.status(400).json({ error: 'El tipo de servicio es requerido' });
+    }
+
+    const signatureConfigResult = resolveSignatureConfig(req, signature_config);
+    if (signatureConfigResult.error) {
+      return res.status(400).json({ error: signatureConfigResult.error });
     }
 
     // Generar ID automático
@@ -101,7 +149,8 @@ const create = async (req, res) => {
       purchase_order_number: purchase_order_number || null, purchase_order_document: purchase_order_document || null,
       solpe: solpe || null, resources: resources || null, selected_materials: selected_materials || null,
       selected_tools: selected_tools || null, user_id_registration: req.user.id,
-      is_emergency: is_emergency || false
+      is_emergency: is_emergency || false,
+      signature_config: signatureConfigResult.config || null
     };
 
     const newWorkOrder = await createWorkOrder(orderData);
@@ -148,18 +197,26 @@ const update = async (req, res) => {
       estimated_materials, estimated_time, required_tools, gps_coordinates,
       project_name, personnel_list, purchase_order_number, purchase_order_document,
       first_visit_completed, first_visit_date, reassignment_date, reassigned_by,
-      resources, selected_materials, selected_tools, solpe, resources_update_date, status
+      resources, selected_materials, selected_tools, solpe, resources_update_date, status,
+      signature_config
     } = req.body;
 
     const existingWorkOrder = await getWorkOrderById(id);
     if (!existingWorkOrder) return res.status(404).json({ error: 'Orden de trabajo no encontrada' });
+
+    const signatureConfigResult = resolveSignatureConfig(req, signature_config);
+    if (signatureConfigResult.error) {
+      return res.status(400).json({ error: signatureConfigResult.error });
+    }
 
     // PROTECCIÓN: Bloquear modificaciones a órdenes completadas
     // Solo permitir cambios si es una actualización de firmas del informe final
     const isCompleted = existingWorkOrder.status === 'completed';
     if (isCompleted) {
       // Lista de campos permitidos para órdenes completadas (solo lectura/firmas)
-      const allowedFieldsForCompleted = ['status']; // Solo permitir cambiar status si es necesario reabrir
+      // - status: por si es necesario reabrir
+      // - signature_config: el administrador puede ajustar las firmas obligatorias mientras el informe siga pendiente
+      const allowedFieldsForCompleted = ['status', 'signature_config'];
       const requestedFields = Object.keys(req.body).filter(key => req.body[key] !== undefined && req.body[key] !== null);
       const hasDisallowedFields = requestedFields.some(field => !allowedFieldsForCompleted.includes(field));
 
@@ -181,10 +238,16 @@ const update = async (req, res) => {
       project_name, personnel_list, purchase_order_number, purchase_order_document,
       first_visit_completed, first_visit_date, reassignment_date, reassigned_by,
       resources, selected_materials, selected_tools, solpe, resources_update_date,
-      status, user_id_modification: req.user.id
+      status, user_id_modification: req.user.id,
+      signature_config: signatureConfigResult.config
     };
 
     const updatedWorkOrder = await updateWorkOrder(id, orderData);
+
+    if (signatureConfigResult.config) {
+      await syncPendingFinalReports(id, signatureConfigResult.config, req.user.id);
+    }
+
     const filteredWorkOrder = filterSensitiveFields(updatedWorkOrder, req.user, 'work_order');
     res.json({ mensaje: 'Orden de trabajo actualizada exitosamente', data: filteredWorkOrder });
   } catch (error) {
