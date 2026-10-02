@@ -98,7 +98,8 @@ const createWorkOrder = async (orderData) => {
     approval_status, estimated_materials, estimated_time, required_tools,
     gps_coordinates, project_name, personnel_list, purchase_order_number,
     purchase_order_document, solpe, resources, selected_materials,
-    selected_tools, user_id_registration, is_emergency, signature_config
+    selected_tools, user_id_registration, is_emergency, signature_config,
+    observations
   } = orderData;
 
   // Obtener timestamp actual en zona horaria de Lima
@@ -113,11 +114,11 @@ const createWorkOrder = async (orderData) => {
       gps_coordinates, project_name, personnel_list, purchase_order_number,
       purchase_order_document, first_visit_completed, solpe, resources,
       selected_materials, selected_tools, status, user_id_registration,
-      date_time_registration, is_emergency, signature_config
+      date_time_registration, is_emergency, signature_config, observations
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
       $17, $18, $19, $20, $21, $22, $23, $24, false, $25, $26, $27, $28,
-      'pending', $29, $30, $31, $32
+      'pending', $29, $30, $31, $32, $33
     )
     RETURNING *
   `;
@@ -144,7 +145,8 @@ const createWorkOrder = async (orderData) => {
     toJson(selected_tools),           // JSONB - serializar
     user_id_registration, currentTs,
     is_emergency || false,
-    toJson(signature_config)          // JSONB - firmas obligatorias/opcionales
+    toJson(signature_config),         // JSONB - firmas obligatorias/opcionales
+    observations
   ]);
   return result.rows[0];
 };
@@ -159,7 +161,7 @@ const updateWorkOrder = async (id, orderData) => {
     project_name, personnel_list, purchase_order_number, purchase_order_document,
     first_visit_completed, first_visit_date, reassignment_date, reassigned_by,
     resources, selected_materials, selected_tools, solpe, resources_update_date,
-    status, user_id_modification, signature_config
+    status, user_id_modification, signature_config, observations
   } = orderData;
 
   const query = `
@@ -203,7 +205,8 @@ const updateWorkOrder = async (id, orderData) => {
         status = COALESCE($37, status),
         user_id_modification = $38,
         date_time_modification = $39,
-        signature_config = COALESCE($41, signature_config)
+        signature_config = COALESCE($41, signature_config),
+        observations = COALESCE($42, observations)
     WHERE id = $40
     RETURNING *
   `;
@@ -233,7 +236,8 @@ const updateWorkOrder = async (id, orderData) => {
     toJson(selected_tools),           // JSONB - serializar
     solpe, resources_update_date,
     status, user_id_modification, currentTs, id,
-    toJson(signature_config)          // JSONB - firmas obligatorias/opcionales
+    toJson(signature_config),         // JSONB - firmas obligatorias/opcionales
+    observations                      // '' borra las observaciones; null/undefined las conserva
   ]);
   return result.rows.length > 0 ? result.rows[0] : null;
 };

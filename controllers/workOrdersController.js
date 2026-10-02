@@ -117,7 +117,7 @@ const create = async (req, res) => {
       approval_status, estimated_materials, estimated_time, required_tools,
       gps_coordinates, project_name, personnel_list, purchase_order_number,
       purchase_order_document, solpe, resources, selected_materials, selected_tools,
-      is_emergency, signature_config
+      is_emergency, signature_config, observations
     } = req.body;
 
     // Validaciones básicas
@@ -150,7 +150,8 @@ const create = async (req, res) => {
       solpe: solpe || null, resources: resources || null, selected_materials: selected_materials || null,
       selected_tools: selected_tools || null, user_id_registration: req.user.id,
       is_emergency: is_emergency || false,
-      signature_config: signatureConfigResult.config || null
+      signature_config: signatureConfigResult.config || null,
+      observations: observations || null
     };
 
     const newWorkOrder = await createWorkOrder(orderData);
@@ -198,7 +199,7 @@ const update = async (req, res) => {
       project_name, personnel_list, purchase_order_number, purchase_order_document,
       first_visit_completed, first_visit_date, reassignment_date, reassigned_by,
       resources, selected_materials, selected_tools, solpe, resources_update_date, status,
-      signature_config
+      signature_config, observations
     } = req.body;
 
     const existingWorkOrder = await getWorkOrderById(id);
@@ -239,7 +240,8 @@ const update = async (req, res) => {
       first_visit_completed, first_visit_date, reassignment_date, reassigned_by,
       resources, selected_materials, selected_tools, solpe, resources_update_date,
       status, user_id_modification: req.user.id,
-      signature_config: signatureConfigResult.config
+      signature_config: signatureConfigResult.config,
+      observations
     };
 
     const updatedWorkOrder = await updateWorkOrder(id, orderData);

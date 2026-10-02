@@ -714,6 +714,7 @@ model work_orders {
   solpe                    String?              @db.VarChar(30)
   resources_update_date    DateTime?            @db.Timestamp(6)
   signature_config         Json?
+  observations             String?
   status                   String?              @default("pending") @db.VarChar(20)
   user_id_registration     Int?
   date_time_registration   DateTime?            @default(now()) @db.Timestamp(6)
