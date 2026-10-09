@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const { createDatabaseBackup, generateBackupFilename } = require('../services/backupService');
 const { uploadBackup, getBackup, listBackups, deleteBackup } = require('../services/wasabiService');
 
@@ -23,7 +24,7 @@ exports.createBackup = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al crear backup:', error);
-    res.status(500).json({ error: error.message || 'Error al crear el backup de la base de datos' });
+    responderErrorServidor(res, error, 'Error al crear el backup de la base de datos');
   }
 };
 
@@ -44,7 +45,7 @@ exports.listBackups = async (req, res) => {
     res.json(formatted);
   } catch (error) {
     console.error('Error al listar backups:', error);
-    res.status(500).json({ error: 'Error al obtener la lista de backups' });
+    responderErrorServidor(res, error, 'Error al obtener la lista de backups');
   }
 };
 
@@ -52,7 +53,11 @@ exports.downloadBackup = async (req, res) => {
   try {
     const { filename } = req.params;
     if (!filename) {
-      return res.status(400).json({ error: 'Nombre de archivo requerido' });
+      return res.status(400).json({
+        error: 'Nombre de archivo requerido',
+        message: 'No se indicó qué backup descargar. Esto es un problema de la aplicación, no de lo que hiciste: recarga la lista de backups en Configuración y pulsa de nuevo el botón de descarga. Si persiste, avisa al administrador del sistema.',
+        tipo: 'validacion'
+      });
     }
 
     const key = `${BACKUP_PREFIX}${filename}`;
@@ -67,10 +72,14 @@ exports.downloadBackup = async (req, res) => {
     s3Response.Body.pipe(res);
   } catch (error) {
     if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
-      return res.status(404).json({ error: 'Backup no encontrado' });
+      return res.status(404).json({
+        error: 'Backup no encontrado',
+        message: `El backup «${req.params.filename}» ya no existe en el almacenamiento (es posible que otro usuario lo haya eliminado). Recarga la lista de backups en Configuración para ver los disponibles.`,
+        tipo: 'no_encontrado'
+      });
     }
     console.error('Error al descargar backup:', error);
-    res.status(500).json({ error: 'Error al descargar el backup' });
+    responderErrorServidor(res, error, 'Error al descargar el backup');
   }
 };
 
@@ -78,7 +87,11 @@ exports.deleteBackup = async (req, res) => {
   try {
     const { filename } = req.params;
     if (!filename) {
-      return res.status(400).json({ error: 'Nombre de archivo requerido' });
+      return res.status(400).json({
+        error: 'Nombre de archivo requerido',
+        message: 'No se indicó qué backup eliminar. Esto es un problema de la aplicación, no de lo que hiciste: recarga la lista de backups en Configuración y pulsa de nuevo el botón de eliminar. Si persiste, avisa al administrador del sistema.',
+        tipo: 'validacion'
+      });
     }
 
     const key = `${BACKUP_PREFIX}${filename}`;
@@ -87,6 +100,6 @@ exports.deleteBackup = async (req, res) => {
     res.json({ message: 'Backup eliminado exitosamente' });
   } catch (error) {
     console.error('Error al eliminar backup:', error);
-    res.status(500).json({ error: 'Error al eliminar el backup' });
+    responderErrorServidor(res, error, 'Error al eliminar el backup');
   }
 };

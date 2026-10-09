@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const { getAllEmployeePermits, getEmployeePermitById, createEmployeePermit, updateEmployeePermit, deleteEmployeePermit, generatePermitId } = require('../models/employeePermitsModel');
 
 const getAll = async (req, res) => {
@@ -7,7 +8,7 @@ const getAll = async (req, res) => {
     res.json(permits);
   } catch (error) {
     console.error('Error al obtener permisos:', error);
-    res.status(500).json({ error: 'Error al obtener permisos' });
+    responderErrorServidor(res, error, 'Error al obtener permisos');
   }
 };
 
@@ -15,11 +16,17 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const permit = await getEmployeePermitById(id);
-    if (!permit) return res.status(404).json({ error: 'Permiso no encontrado' });
+    if (!permit) {
+      return res.status(404).json({
+        error: 'Permiso no encontrado',
+        message: `El permiso de empleado ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla Permisos para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     res.json(permit);
   } catch (error) {
     console.error('Error al obtener permiso:', error);
-    res.status(500).json({ error: 'Error al obtener permiso' });
+    responderErrorServidor(res, error, 'Error al obtener permiso');
   }
 };
 
@@ -32,7 +39,7 @@ const create = async (req, res) => {
     res.status(201).json({ mensaje: 'Permiso creado exitosamente', data: newPermit });
   } catch (error) {
     console.error('Error al crear permiso:', error);
-    res.status(500).json({ error: 'Error al crear permiso' });
+    responderErrorServidor(res, error, 'Error al crear permiso');
   }
 };
 
@@ -40,13 +47,19 @@ const update = async (req, res) => {
   try {
     const { id } = req.params;
     const existingPermit = await getEmployeePermitById(id);
-    if (!existingPermit) return res.status(404).json({ error: 'Permiso no encontrado' });
+    if (!existingPermit) {
+      return res.status(404).json({
+        error: 'Permiso no encontrado',
+        message: `El permiso de empleado ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla Permisos para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const permitData = { ...req.body, user_id_modification: req.user.id };
     const updatedPermit = await updateEmployeePermit(id, permitData);
     res.json({ mensaje: 'Permiso actualizado exitosamente', data: updatedPermit });
   } catch (error) {
     console.error('Error al actualizar permiso:', error);
-    res.status(500).json({ error: 'Error al actualizar permiso' });
+    responderErrorServidor(res, error, 'Error al actualizar permiso');
   }
 };
 
@@ -54,12 +67,18 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const existingPermit = await getEmployeePermitById(id);
-    if (!existingPermit) return res.status(404).json({ error: 'Permiso no encontrado' });
+    if (!existingPermit) {
+      return res.status(404).json({
+        error: 'Permiso no encontrado',
+        message: `El permiso de empleado ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla Permisos para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedPermit = await deleteEmployeePermit(id, req.user.id);
     res.json({ mensaje: 'Permiso cancelado exitosamente', data: deletedPermit });
   } catch (error) {
     console.error('Error al cancelar permiso:', error);
-    res.status(500).json({ error: 'Error al cancelar permiso' });
+    responderErrorServidor(res, error, 'Error al cancelar permiso');
   }
 };
 
@@ -69,7 +88,7 @@ const getNextId = async (req, res) => {
     res.json({ next_id: nextId });
   } catch (error) {
     console.error('Error al generar ID:', error);
-    res.status(500).json({ error: 'Error al generar ID' });
+    responderErrorServidor(res, error, 'Error al generar ID');
   }
 };
 

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { findUserByEmail, updateLastActivity } = require('../models/authModel');
@@ -9,20 +10,32 @@ const login = async (req, res) => {
   try {
     // Validar que se proporcionen email y password
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email y contraseña son requeridos' });
+      return res.status(400).json({
+        error: 'Email y contraseña son requeridos',
+        message: 'Para iniciar sesión debes escribir tu correo electrónico y tu contraseña. Completa ambos campos y vuelve a intentarlo.',
+        tipo: 'validacion'
+      });
     }
 
     // Buscar usuario con su rol y permisos
     const user = await findUserByEmail(email);
 
     if (!user) {
-      return res.status(404).json({ error: 'Email no registrado o usuario inactivo' });
+      return res.status(404).json({
+        error: 'Email no registrado o usuario inactivo',
+        message: 'No hay ningún usuario activo con ese correo electrónico. Revisa que el correo esté bien escrito (sin espacios ni letras de más). Si aún no tienes cuenta o tu usuario fue desactivado, contacta al administrador del sistema.',
+        tipo: 'no_encontrado'
+      });
     }
 
     // Comparar contraseñas con bcrypt
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      return res.status(401).json({ error: 'Contraseña incorrecta' });
+      return res.status(401).json({
+        error: 'Contraseña incorrecta',
+        message: 'La contraseña no coincide con la registrada para este usuario. Revisa que la tecla Bloq Mayús no esté activada (se distinguen mayúsculas y minúsculas) y vuelve a escribirla. Si la olvidaste, pide al administrador del sistema que la restablezca.',
+        tipo: 'sesion'
+      });
     }
 
     // Actualizar última actividad del usuario
@@ -64,7 +77,7 @@ const login = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en login:', error);
-    res.status(500).json({ error: 'Error al iniciar sesión' });
+    responderErrorServidor(res, error, 'Error al iniciar sesión');
   }
 };
 

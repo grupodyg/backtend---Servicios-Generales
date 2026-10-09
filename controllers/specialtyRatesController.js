@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllSpecialtyRates,
   getSpecialtyRateById,
@@ -17,7 +18,7 @@ const getAll = async (req, res) => {
     res.json(rates);
   } catch (error) {
     console.error('Error al obtener tarifas de especialidad:', error);
-    res.status(500).json({ error: 'Error al obtener tarifas de especialidad' });
+    responderErrorServidor(res, error, 'Error al obtener tarifas de especialidad');
   }
 };
 
@@ -30,13 +31,17 @@ const getById = async (req, res) => {
     const rate = await getSpecialtyRateById(id);
 
     if (!rate) {
-      return res.status(404).json({ error: 'Tarifa de especialidad no encontrada' });
+      return res.status(404).json({
+        error: 'Tarifa de especialidad no encontrada',
+        message: `La tarifa de especialidad con ID ${id} no existe o fue eliminada por otro usuario. Recarga la lista de tarifas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     res.json(rate);
   } catch (error) {
     console.error('Error al obtener tarifa de especialidad:', error);
-    res.status(500).json({ error: 'Error al obtener tarifa de especialidad' });
+    responderErrorServidor(res, error, 'Error al obtener tarifa de especialidad');
   }
 };
 
@@ -49,13 +54,17 @@ const getByName = async (req, res) => {
     const rate = await getSpecialtyRateByName(specialty);
 
     if (!rate) {
-      return res.status(404).json({ error: 'No se encontro tarifa para esa especialidad' });
+      return res.status(404).json({
+        error: 'No se encontró tarifa para esa especialidad',
+        message: `No hay una tarifa activa registrada para la especialidad «${specialty}», así que no se puede calcular su costo. Registra la tarifa diaria de esa especialidad en la configuración de tarifas (o pide al administrador que lo haga), o elige otra especialidad.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     res.json(rate);
   } catch (error) {
     console.error('Error al obtener tarifa por especialidad:', error);
-    res.status(500).json({ error: 'Error al obtener tarifa por especialidad' });
+    responderErrorServidor(res, error, 'Error al obtener tarifa por especialidad');
   }
 };
 
@@ -68,11 +77,19 @@ const create = async (req, res) => {
 
     // Validaciones
     if (!specialty || specialty.trim() === '') {
-      return res.status(400).json({ error: 'La especialidad es requerida' });
+      return res.status(400).json({
+        error: 'La especialidad es requerida',
+        message: 'El campo «Especialidad» está vacío. Escribe el nombre de la especialidad (por ejemplo, «Electricista») y vuelve a guardar.',
+        tipo: 'validacion'
+      });
     }
 
     if (!daily_rate || daily_rate <= 0) {
-      return res.status(400).json({ error: 'La tarifa diaria es requerida y debe ser mayor a 0' });
+      return res.status(400).json({
+        error: 'La tarifa diaria es requerida y debe ser mayor a 0',
+        message: `El campo «Tarifa diaria» ${daily_rate ? `tiene el valor ${daily_rate}, pero` : 'está vacío y'} debe ser un monto mayor que 0. Corrígelo y vuelve a guardar.`,
+        tipo: 'validacion'
+      });
     }
 
     const rateData = {
@@ -93,10 +110,14 @@ const create = async (req, res) => {
 
     // Error de especialidad duplicada
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe una tarifa para esa especialidad' });
+      return res.status(409).json({
+        error: 'Ya existe una tarifa para esa especialidad',
+        message: `Ya existe una tarifa para la especialidad «${req.body?.specialty?.trim()}». Cada especialidad solo puede tener una tarifa: edita la tarifa existente en lugar de crear otra, o cambia el nombre de la especialidad.`,
+        tipo: 'conflicto'
+      });
     }
 
-    res.status(500).json({ error: 'Error al crear tarifa de especialidad' });
+    responderErrorServidor(res, error, 'Error al crear tarifa de especialidad');
   }
 };
 
@@ -111,7 +132,11 @@ const update = async (req, res) => {
     // Validar que la tarifa existe
     const existingRate = await getSpecialtyRateById(id);
     if (!existingRate) {
-      return res.status(404).json({ error: 'Tarifa de especialidad no encontrada' });
+      return res.status(404).json({
+        error: 'Tarifa de especialidad no encontrada',
+        message: `La tarifa de especialidad con ID ${id} no existe o fue eliminada por otro usuario. Recarga la lista de tarifas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     const rateData = {
@@ -133,10 +158,14 @@ const update = async (req, res) => {
 
     // Error de especialidad duplicada
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe una tarifa para esa especialidad' });
+      return res.status(409).json({
+        error: 'Ya existe una tarifa para esa especialidad',
+        message: `Ya existe una tarifa para la especialidad «${req.body?.specialty?.trim()}». Cada especialidad solo puede tener una tarifa: edita la tarifa existente en lugar de crear otra, o cambia el nombre de la especialidad.`,
+        tipo: 'conflicto'
+      });
     }
 
-    res.status(500).json({ error: 'Error al actualizar tarifa de especialidad' });
+    responderErrorServidor(res, error, 'Error al actualizar tarifa de especialidad');
   }
 };
 
@@ -150,7 +179,11 @@ const remove = async (req, res) => {
     // Validar que la tarifa existe
     const existingRate = await getSpecialtyRateById(id);
     if (!existingRate) {
-      return res.status(404).json({ error: 'Tarifa de especialidad no encontrada' });
+      return res.status(404).json({
+        error: 'Tarifa de especialidad no encontrada',
+        message: `La tarifa de especialidad con ID ${id} no existe o fue eliminada por otro usuario. Recarga la lista de tarifas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     const deletedRate = await deleteSpecialtyRate(id, req.user?.id || null);
@@ -160,7 +193,7 @@ const remove = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al eliminar tarifa de especialidad:', error);
-    res.status(500).json({ error: 'Error al eliminar tarifa de especialidad' });
+    responderErrorServidor(res, error, 'Error al eliminar tarifa de especialidad');
   }
 };
 

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllPaymentConditions,
   getPaymentConditionById,
@@ -16,7 +17,7 @@ const getAll = async (req, res) => {
     res.json(paymentConditions);
   } catch (error) {
     console.error('Error al obtener condiciones de pago:', error);
-    res.status(500).json({ error: 'Error al obtener condiciones de pago' });
+    responderErrorServidor(res, error, 'Error al obtener condiciones de pago');
   }
 };
 
@@ -29,13 +30,17 @@ const getById = async (req, res) => {
     const paymentCondition = await getPaymentConditionById(id);
 
     if (!paymentCondition) {
-      return res.status(404).json({ error: 'Condición de pago no encontrada' });
+      return res.status(404).json({
+        error: 'Condición de pago no encontrada',
+        message: `La condición de pago con ID ${id} no existe o fue eliminada por otro usuario. Recarga Configuración > Condiciones de pago para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     res.json(paymentCondition);
   } catch (error) {
     console.error('Error al obtener condición de pago:', error);
-    res.status(500).json({ error: 'Error al obtener condición de pago' });
+    responderErrorServidor(res, error, 'Error al obtener condición de pago');
   }
 };
 
@@ -48,7 +53,11 @@ const create = async (req, res) => {
 
     // Validaciones
     if (!name || name.trim() === '') {
-      return res.status(400).json({ error: 'El nombre es requerido' });
+      return res.status(400).json({
+        error: 'El nombre es requerido',
+        message: 'El campo «Nombre» de la condición de pago está vacío. Escribe un nombre (por ejemplo, «Contado» o «Crédito 30 días») y vuelve a guardar.',
+        tipo: 'validacion'
+      });
     }
 
     const paymentConditionData = {
@@ -70,10 +79,14 @@ const create = async (req, res) => {
 
     // Error de nombre duplicado
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe una condición de pago con ese nombre' });
+      return res.status(409).json({
+        error: 'Ya existe una condición de pago con ese nombre',
+        message: `Ya existe una condición de pago llamada «${req.body?.name?.trim()}». El nombre debe ser único: elige otro nombre en el formulario o edita la condición de pago existente.`,
+        tipo: 'conflicto'
+      });
     }
 
-    res.status(500).json({ error: 'Error al crear condición de pago' });
+    responderErrorServidor(res, error, 'Error al crear condición de pago');
   }
 };
 
@@ -88,7 +101,11 @@ const update = async (req, res) => {
     // Validar que la condición de pago existe
     const existingPaymentCondition = await getPaymentConditionById(id);
     if (!existingPaymentCondition) {
-      return res.status(404).json({ error: 'Condición de pago no encontrada' });
+      return res.status(404).json({
+        error: 'Condición de pago no encontrada',
+        message: `La condición de pago con ID ${id} no existe o fue eliminada por otro usuario. Recarga Configuración > Condiciones de pago para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     const paymentConditionData = {
@@ -111,10 +128,14 @@ const update = async (req, res) => {
 
     // Error de nombre duplicado
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe una condición de pago con ese nombre' });
+      return res.status(409).json({
+        error: 'Ya existe una condición de pago con ese nombre',
+        message: `Ya existe una condición de pago llamada «${req.body?.name?.trim()}». El nombre debe ser único: elige otro nombre en el formulario o edita la condición de pago existente.`,
+        tipo: 'conflicto'
+      });
     }
 
-    res.status(500).json({ error: 'Error al actualizar condición de pago' });
+    responderErrorServidor(res, error, 'Error al actualizar condición de pago');
   }
 };
 
@@ -128,7 +149,11 @@ const remove = async (req, res) => {
     // Validar que la condición de pago existe
     const existingPaymentCondition = await getPaymentConditionById(id);
     if (!existingPaymentCondition) {
-      return res.status(404).json({ error: 'Condición de pago no encontrada' });
+      return res.status(404).json({
+        error: 'Condición de pago no encontrada',
+        message: `La condición de pago con ID ${id} no existe o fue eliminada por otro usuario. Recarga Configuración > Condiciones de pago para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     const deletedPaymentCondition = await deletePaymentCondition(id, req.user.id);
@@ -138,7 +163,7 @@ const remove = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al eliminar condición de pago:', error);
-    res.status(500).json({ error: 'Error al eliminar condición de pago' });
+    responderErrorServidor(res, error, 'Error al eliminar condición de pago');
   }
 };
 

@@ -7,7 +7,18 @@ const { getAll, getById, create, update, remove, getNextId, checkCanDelete, getH
 const verificarRolesPermitidos = (req, res, next) => {
   const rol = req.user?.role_id;
   if (![1, 2, 3, 4].includes(rol)) {
-    return res.status(403).json({ mensaje: 'Acceso denegado: Rol no autorizado' });
+    return res.status(403).json({ error: 'Acceso denegado', message: 'Tu rol de usuario no tiene permiso para usar esta sección. Si necesitas acceder, pide al administrador del sistema que revise el rol asignado a tu usuario.', tipo: 'permiso' });
+  }
+  next();
+};
+
+// Dar inicio a una orden: misma regla que la ruta /ordenes/nueva del frontend.
+// Se usa el rol normalizado del token (authModel) para no depender de los IDs de la tabla roles.
+const ROLES_CREAN_ORDENES = ['admin', 'supervisor'];
+
+const verificarPuedeCrearOrden = (req, res, next) => {
+  if (!ROLES_CREAN_ORDENES.includes(req.user?.role)) {
+    return res.status(403).json({ error: 'Acceso denegado', message: 'Solo un Administrador o un Supervisor puede crear órdenes de trabajo. Pide a uno de ellos que registre la orden.', tipo: 'permiso' });
   }
   next();
 };
@@ -17,7 +28,8 @@ router.use(verificarRolesPermitidos);
 
 // Rutas sin parámetros primero
 router.get('/', getAll);
-router.post('/', create);
+// POST /api/work-orders - Crear orden (solo admin y supervisor)
+router.post('/', verificarPuedeCrearOrden, create);
 router.get('/next-id', getNextId);
 
 // Rutas con parámetros y sub-rutas ANTES de /:id genérico

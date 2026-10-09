@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const { getAllTools, getToolById, createTool, updateTool, updateToolImage, deleteTool } = require('../models/toolsModel');
 const { filterSensitiveFields } = require('../utils/filterSensitiveFields');
 const { uploadFile, deleteFile } = require('../services/wasabiService');
@@ -11,7 +12,7 @@ const getAll = async (req, res) => {
     res.json(filteredTools);
   } catch (error) {
     console.error('Error al obtener herramientas:', error);
-    res.status(500).json({ error: 'Error al obtener herramientas' });
+    responderErrorServidor(res, error, 'Error al obtener herramientas');
   }
 };
 
@@ -19,12 +20,18 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const tool = await getToolById(id);
-    if (!tool) return res.status(404).json({ error: 'Herramienta no encontrada' });
+    if (!tool) {
+      return res.status(404).json({
+        error: 'Herramienta no encontrada',
+        message: `La herramienta con ID ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Herramientas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const filteredTool = filterSensitiveFields(tool, req.user, 'tool');
     res.json(filteredTool);
   } catch (error) {
     console.error('Error al obtener herramienta:', error);
-    res.status(500).json({ error: 'Error al obtener herramienta' });
+    responderErrorServidor(res, error, 'Error al obtener herramienta');
   }
 };
 
@@ -32,7 +39,11 @@ const create = async (req, res) => {
   try {
     const { code, name, brand, model, description, quantity, value, admission_date, category_id } = req.body;
     if (!code || !name) {
-      return res.status(400).json({ error: 'Código y nombre son requeridos' });
+      return res.status(400).json({
+        error: 'Código y nombre son requeridos',
+        message: `${!code && !name ? 'Los campos «Código» y «Nombre» están vacíos' : !code ? 'El campo «Código» está vacío' : 'El campo «Nombre» está vacío'}. Ambos son obligatorios para registrar una herramienta: complétalos en el formulario y vuelve a guardar.`,
+        tipo: 'validacion'
+      });
     }
 
     let imageUrl = null;
@@ -53,9 +64,13 @@ const create = async (req, res) => {
   } catch (error) {
     console.error('Error al crear herramienta:', error);
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe una herramienta con ese código' });
+      return res.status(409).json({
+        error: 'Ya existe una herramienta con ese código',
+        message: `Ya hay otra herramienta registrada con el código${req.body?.code ? ` «${req.body.code}»` : ''}. El código debe ser único: cámbialo en el campo «Código» del formulario o busca y edita la herramienta existente.`,
+        tipo: 'conflicto'
+      });
     }
-    res.status(500).json({ error: 'Error al crear herramienta' });
+    responderErrorServidor(res, error, 'Error al crear herramienta');
   }
 };
 
@@ -64,7 +79,13 @@ const update = async (req, res) => {
     const { id } = req.params;
     const { code, name, brand, model, description, quantity, value, assigned_to_user_id, assignment_date, category_id, status, remove_image } = req.body;
     const existingTool = await getToolById(id);
-    if (!existingTool) return res.status(404).json({ error: 'Herramienta no encontrada' });
+    if (!existingTool) {
+      return res.status(404).json({
+        error: 'Herramienta no encontrada',
+        message: `La herramienta con ID ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Herramientas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
 
     let imageUrl = undefined;
 
@@ -94,9 +115,13 @@ const update = async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar herramienta:', error);
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe una herramienta con ese código' });
+      return res.status(409).json({
+        error: 'Ya existe una herramienta con ese código',
+        message: `Ya hay otra herramienta registrada con el código${req.body?.code ? ` «${req.body.code}»` : ''}. El código debe ser único: cámbialo en el campo «Código» del formulario o busca y edita la herramienta existente.`,
+        tipo: 'conflicto'
+      });
     }
-    res.status(500).json({ error: 'Error al actualizar herramienta' });
+    responderErrorServidor(res, error, 'Error al actualizar herramienta');
   }
 };
 
@@ -104,12 +129,18 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const existingTool = await getToolById(id);
-    if (!existingTool) return res.status(404).json({ error: 'Herramienta no encontrada' });
+    if (!existingTool) {
+      return res.status(404).json({
+        error: 'Herramienta no encontrada',
+        message: `La herramienta con ID ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Herramientas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedTool = await deleteTool(id, req.user.id);
     res.json({ mensaje: 'Herramienta eliminada exitosamente', data: deletedTool });
   } catch (error) {
     console.error('Error al eliminar herramienta:', error);
-    res.status(500).json({ error: 'Error al eliminar herramienta' });
+    responderErrorServidor(res, error, 'Error al eliminar herramienta');
   }
 };
 

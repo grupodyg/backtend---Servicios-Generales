@@ -7,6 +7,7 @@ require('dotenv').config();
 process.env.TZ = process.env.TZ || 'America/Lima';
 
 const pool = require('./config/db');
+const { manejarRutaNoEncontrada, manejarErrorGlobal } = require('./middleware/errorMiddleware');
 
 // Importar todas las rutas
 const authRoutes = require('./routes/authRoutes');
@@ -53,7 +54,9 @@ if (!PORT) {
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+// Sin tope práctico: las firmas gráficas viajan en base64 dentro del JSON y el límite
+// por defecto (100 KB) las rechazaba con un 413.
+app.use(express.json({ limit: '50mb' }));
 
 // 📌 Rutas de la API
 // Autenticación
@@ -136,9 +139,18 @@ app.get('/api/ping', async (req, res) => {
     res.json({ status: 'ok', time: result.rows[0] });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'DB error' });
+    res.status(503).json({
+      error: 'Base de datos no disponible',
+      message: 'El servidor está activo pero no pudo conectarse con la base de datos.',
+      tipo: 'no_disponible'
+    });
   }
 });
+
+// Rutas /api inexistentes y errores no capturados: siempre JSON con explicación
+// (deben registrarse después de todas las rutas)
+app.use('/api', manejarRutaNoEncontrada);
+app.use(manejarErrorGlobal);
 
 app.listen(PORT, () => {
   console.log(`Servidor backend corriendo en http://localhost:${PORT}`);

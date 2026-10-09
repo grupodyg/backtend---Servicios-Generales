@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllTechnicalVisits,
   getTechnicalVisitById,
@@ -63,7 +64,7 @@ const getAll = async (req, res) => {
     res.json(visits);
   } catch (error) {
     console.error('Error al obtener visitas técnicas:', error);
-    res.status(500).json({ error: 'Error al obtener visitas técnicas' });
+    responderErrorServidor(res, error, 'Error al obtener visitas técnicas');
   }
 };
 
@@ -71,7 +72,13 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     let visit = await getTechnicalVisitById(id);
-    if (!visit) return res.status(404).json({ error: 'Visita técnica no encontrada' });
+    if (!visit) {
+      return res.status(404).json({
+        error: 'Visita técnica no encontrada',
+        message: `La visita técnica ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Visitas técnicas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
 
     // Si no es admin, eliminar datos de precios del personal
     const isAdmin = req.user?.role === 'admin';
@@ -82,7 +89,7 @@ const getById = async (req, res) => {
     res.json(visit);
   } catch (error) {
     console.error('Error al obtener visita técnica:', error);
-    res.status(500).json({ error: 'Error al obtener visita técnica' });
+    responderErrorServidor(res, error, 'Error al obtener visita técnica');
   }
 };
 
@@ -113,7 +120,7 @@ const create = async (req, res) => {
     res.status(201).json({ mensaje: 'Visita técnica creada exitosamente', data: newVisit });
   } catch (error) {
     console.error('Error al crear visita técnica:', error);
-    res.status(500).json({ error: 'Error al crear visita técnica' });
+    responderErrorServidor(res, error, 'Error al crear visita técnica');
   }
 };
 
@@ -124,7 +131,13 @@ const update = async (req, res) => {
     console.log('🔄 UPDATE Request - Body:', JSON.stringify(req.body, null, 2));
 
     const existingVisit = await getTechnicalVisitById(id);
-    if (!existingVisit) return res.status(404).json({ error: 'Visita técnica no encontrada' });
+    if (!existingVisit) {
+      return res.status(404).json({
+        error: 'Visita técnica no encontrada',
+        message: `La visita técnica ${id} no existe o fue eliminada por otro usuario, así que no se pueden guardar los cambios. Recarga la pantalla Visitas técnicas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
 
     const visitData = { ...req.body, user_id_modification: req.user.id };
 
@@ -149,7 +162,7 @@ const update = async (req, res) => {
     console.error('❌ Error al actualizar visita técnica:', error);
     console.error('❌ Error stack:', error.stack);
     console.error('❌ Error message:', error.message);
-    res.status(500).json({ error: 'Error al actualizar visita técnica', details: error.message });
+    responderErrorServidor(res, error, 'Error al actualizar visita técnica');
   }
 };
 
@@ -165,7 +178,11 @@ const remove = async (req, res) => {
 
     const existingVisit = await getTechnicalVisitById(id);
     if (!existingVisit) {
-      return res.status(404).json({ error: 'Visita técnica no encontrada' });
+      return res.status(404).json({
+        error: 'Visita técnica no encontrada',
+        message: `La visita técnica ${id} no existe o ya fue eliminada por otro usuario. Recarga la pantalla Visitas técnicas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     // Verificar dependencias antes de eliminar
@@ -196,7 +213,7 @@ const remove = async (req, res) => {
     console.error('❌ Error al eliminar visita técnica:', error);
     console.error('❌ Error message:', error.message);
     console.error('❌ Error stack:', error.stack);
-    res.status(500).json({ error: 'Error al eliminar visita técnica', details: error.message });
+    responderErrorServidor(res, error, 'Error al eliminar visita técnica');
   }
 };
 
@@ -206,7 +223,7 @@ const getNextId = async (req, res) => {
     res.json({ next_id: nextId });
   } catch (error) {
     console.error('Error al generar ID de visita:', error);
-    res.status(500).json({ error: 'Error al generar ID de visita' });
+    responderErrorServidor(res, error, 'Error al generar ID de visita');
   }
 };
 
@@ -216,7 +233,11 @@ const checkCanDelete = async (req, res) => {
 
     const existingVisit = await getTechnicalVisitById(id);
     if (!existingVisit) {
-      return res.status(404).json({ error: 'Visita técnica no encontrada' });
+      return res.status(404).json({
+        error: 'Visita técnica no encontrada',
+        message: `La visita técnica ${id} no existe o ya fue eliminada por otro usuario. Recarga la pantalla Visitas técnicas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     const dependencyCheck = await checkTechnicalVisitDependencies(id);
@@ -230,7 +251,7 @@ const checkCanDelete = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al verificar dependencias:', error);
-    res.status(500).json({ error: 'Error al verificar dependencias' });
+    responderErrorServidor(res, error, 'Error al verificar dependencias');
   }
 };
 

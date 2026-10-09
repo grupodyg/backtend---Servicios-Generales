@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllClients,
   getClientById,
@@ -13,7 +14,7 @@ const getAll = async (req, res) => {
     res.json(clients);
   } catch (error) {
     console.error('Error al obtener clientes:', error);
-    res.status(500).json({ error: 'Error al obtener clientes' });
+    responderErrorServidor(res, error, 'Error al obtener clientes');
   }
 };
 
@@ -22,12 +23,16 @@ const getById = async (req, res) => {
     const { id } = req.params;
     const client = await getClientById(id);
     if (!client) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({
+        error: 'Cliente no encontrado',
+        message: `El cliente con ID ${id} no existe o fue eliminado por otro usuario. Recarga la lista de clientes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
     res.json(client);
   } catch (error) {
     console.error('Error al obtener cliente:', error);
-    res.status(500).json({ error: 'Error al obtener cliente' });
+    responderErrorServidor(res, error, 'Error al obtener cliente');
   }
 };
 
@@ -36,15 +41,27 @@ const create = async (req, res) => {
     const { type, name, ruc, dni, email, phone, address, category, notes } = req.body;
 
     if (!type || !name) {
-      return res.status(400).json({ error: 'El tipo y nombre son requeridos' });
+      return res.status(400).json({
+        error: 'El tipo y nombre son requeridos',
+        message: `Falta ${!type ? 'el tipo de cliente (persona natural o empresa)' : 'el nombre o la razón social del cliente'}. Complétalo en el formulario de nuevo cliente y vuelve a guardar.`,
+        tipo: 'validacion'
+      });
     }
 
     if (type === 'juridico' && !ruc) {
-      return res.status(400).json({ error: 'RUC es requerido para clientes jurídicos' });
+      return res.status(400).json({
+        error: 'RUC es requerido para clientes jurídicos',
+        message: 'Los clientes de tipo empresa (persona jurídica) deben tener RUC. Escribe el RUC en el formulario o, si es una persona, cambia el tipo de cliente a persona natural.',
+        tipo: 'validacion'
+      });
     }
 
     if (type === 'natural' && !dni) {
-      return res.status(400).json({ error: 'DNI es requerido para clientes naturales' });
+      return res.status(400).json({
+        error: 'DNI es requerido para clientes naturales',
+        message: 'Los clientes de tipo persona natural deben tener DNI. Escribe el DNI en el formulario o, si es una empresa, cambia el tipo de cliente a empresa (persona jurídica).',
+        tipo: 'validacion'
+      });
     }
 
     const clientData = {
@@ -57,7 +74,7 @@ const create = async (req, res) => {
     res.status(201).json({ mensaje: 'Cliente creado exitosamente', data: newClient });
   } catch (error) {
     console.error('Error al crear cliente:', error);
-    res.status(500).json({ error: 'Error al crear cliente' });
+    responderErrorServidor(res, error, 'Error al crear cliente');
   }
 };
 
@@ -75,7 +92,11 @@ const update = async (req, res) => {
     const existingClient = await getClientById(id);
     if (!existingClient) {
       console.error('❌ Cliente no encontrado:', id);
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({
+        error: 'Cliente no encontrado',
+        message: `El cliente con ID ${id} no existe o fue eliminado por otro usuario, así que no se pueden guardar los cambios. Recarga la lista de clientes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     // Determinar tipo final (usar tipo existente si no se proporciona)
@@ -89,7 +110,9 @@ const update = async (req, res) => {
         if (!finalRuc) {
           console.error('❌ Validación fallida: Cambio a cliente jurídico sin RUC');
           return res.status(400).json({
-            error: 'Cliente de tipo jurídico requiere RUC'
+            error: 'Cliente de tipo jurídico requiere RUC',
+            message: `Estás cambiando el cliente «${existingClient.name}» a tipo empresa (persona jurídica), pero no tiene RUC. Escribe el RUC en el formulario de edición antes de guardar, o mantén el tipo de cliente actual.`,
+            tipo: 'validacion'
           });
         }
       } else if (finalType === 'natural') {
@@ -98,7 +121,9 @@ const update = async (req, res) => {
         if (!finalDni) {
           console.error('❌ Validación fallida: Cambio a cliente natural sin DNI');
           return res.status(400).json({
-            error: 'Cliente de tipo natural requiere DNI'
+            error: 'Cliente de tipo natural requiere DNI',
+            message: `Estás cambiando el cliente «${existingClient.name}» a tipo persona natural, pero no tiene DNI. Escribe el DNI en el formulario de edición antes de guardar, o mantén el tipo de cliente actual.`,
+            tipo: 'validacion'
           });
         }
       }
@@ -122,7 +147,7 @@ const update = async (req, res) => {
       stack: error.stack,
       clientId: req.params.id
     });
-    res.status(500).json({ error: 'Error al actualizar cliente' });
+    responderErrorServidor(res, error, 'Error al actualizar cliente');
   }
 };
 
@@ -131,13 +156,17 @@ const remove = async (req, res) => {
     const { id } = req.params;
     const existingClient = await getClientById(id);
     if (!existingClient) {
-      return res.status(404).json({ error: 'Cliente no encontrado' });
+      return res.status(404).json({
+        error: 'Cliente no encontrado',
+        message: `El cliente con ID ${id} no existe o ya fue eliminado por otro usuario. Recarga la lista de clientes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
     const deletedClient = await deleteClient(id, req.user.id);
     res.json({ mensaje: 'Cliente eliminado exitosamente', data: deletedClient });
   } catch (error) {
     console.error('Error al eliminar cliente:', error);
-    res.status(500).json({ error: 'Error al eliminar cliente' });
+    responderErrorServidor(res, error, 'Error al eliminar cliente');
   }
 };
 

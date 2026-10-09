@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const { getAllCommunications, getCommunicationById, createCommunication, updateCommunication, deleteCommunication } = require('../models/communicationsModel');
 
 const getAll = async (req, res) => {
@@ -7,7 +8,7 @@ const getAll = async (req, res) => {
     res.json(communications);
   } catch (error) {
     console.error('Error al obtener comunicaciones:', error);
-    res.status(500).json({ error: 'Error al obtener comunicaciones' });
+    responderErrorServidor(res, error, 'Error al obtener comunicaciones');
   }
 };
 
@@ -15,11 +16,17 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const communication = await getCommunicationById(id);
-    if (!communication) return res.status(404).json({ error: 'Comunicación no encontrada' });
+    if (!communication) {
+      return res.status(404).json({
+        error: 'Comunicación no encontrada',
+        message: `La comunicación con ID ${id} no existe o fue eliminada por otro usuario. Recarga la página para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     res.json(communication);
   } catch (error) {
     console.error('Error al obtener comunicación:', error);
-    res.status(500).json({ error: 'Error al obtener comunicación' });
+    responderErrorServidor(res, error, 'Error al obtener comunicación');
   }
 };
 
@@ -31,7 +38,7 @@ const create = async (req, res) => {
     res.status(201).json({ mensaje: 'Comunicación creada exitosamente', data: newCommunication });
   } catch (error) {
     console.error('Error al crear comunicación:', error);
-    res.status(500).json({ error: 'Error al crear comunicación' });
+    responderErrorServidor(res, error, 'Error al crear comunicación');
   }
 };
 
@@ -39,13 +46,19 @@ const update = async (req, res) => {
   try {
     const { id } = req.params;
     const existingCommunication = await getCommunicationById(id);
-    if (!existingCommunication) return res.status(404).json({ error: 'Comunicación no encontrada' });
+    if (!existingCommunication) {
+      return res.status(404).json({
+        error: 'Comunicación no encontrada',
+        message: `La comunicación con ID ${id} no existe o fue eliminada por otro usuario. Recarga la página para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const communicationData = { ...req.body, user_id_modification: req.user.id };
     const updatedCommunication = await updateCommunication(id, communicationData);
     res.json({ mensaje: 'Comunicación actualizada exitosamente', data: updatedCommunication });
   } catch (error) {
     console.error('Error al actualizar comunicación:', error);
-    res.status(500).json({ error: 'Error al actualizar comunicación' });
+    responderErrorServidor(res, error, 'Error al actualizar comunicación');
   }
 };
 
@@ -53,12 +66,18 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const existingCommunication = await getCommunicationById(id);
-    if (!existingCommunication) return res.status(404).json({ error: 'Comunicación no encontrada' });
+    if (!existingCommunication) {
+      return res.status(404).json({
+        error: 'Comunicación no encontrada',
+        message: `La comunicación con ID ${id} no existe o fue eliminada por otro usuario. Recarga la página para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedCommunication = await deleteCommunication(id, req.user.id);
     res.json({ mensaje: 'Comunicación eliminada exitosamente', data: deletedCommunication });
   } catch (error) {
     console.error('Error al eliminar comunicación:', error);
-    res.status(500).json({ error: 'Error al eliminar comunicación' });
+    responderErrorServidor(res, error, 'Error al eliminar comunicación');
   }
 };
 

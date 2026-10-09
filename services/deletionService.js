@@ -68,9 +68,9 @@ async function checkWorkOrderDependencies(workOrderId) {
       if (dependencies.order_photos > 0) parts.push(`${dependencies.order_photos} foto(s)`);
       if (dependencies.final_reports > 0) parts.push(`${dependencies.final_reports} informe(s) final(es)`);
 
-      message = `Esta orden tiene registros asociados: ${parts.join(', ')}. Al eliminarla, estos registros quedarán sin orden asociada.`;
+      message = `Esta orden de trabajo tiene registros asociados: ${parts.join(', ')}. Si la eliminas, esos registros no se borran, pero quedarán sin una orden visible a la que pertenezcan. Revísalos antes de confirmar si necesitas conservarlos vinculados.`;
     } else {
-      message = 'Esta orden no tiene registros asociados. Puede eliminarse sin problemas.';
+      message = 'Esta orden de trabajo no tiene registros asociados. Puedes eliminarla sin afectar a otros datos.';
     }
 
     return {
@@ -131,9 +131,9 @@ async function checkTechnicalVisitDependencies(visitId) {
       if (dependencies.work_orders > 0) parts.push(`${dependencies.work_orders} orden(es) de trabajo`);
       if (dependencies.technicians > 0) parts.push(`${dependencies.technicians} técnico(s) asignado(s)`);
 
-      message = `Esta visita técnica tiene registros asociados: ${parts.join(', ')}. Al eliminarla, estos registros quedarán sin visita asociada.`;
+      message = `Esta visita técnica tiene registros asociados: ${parts.join(', ')}. Si la eliminas, esos registros no se borran, pero quedarán sin una visita visible a la que pertenezcan. Revísalos antes de confirmar si necesitas conservarlos vinculados.`;
     } else {
-      message = 'Esta visita técnica no tiene registros asociados. Puede eliminarse sin problemas.';
+      message = 'Esta visita técnica no tiene registros asociados. Puedes eliminarla sin afectar a otros datos.';
     }
 
     return {

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllWorkOrders,
   getWorkOrderById,
@@ -21,6 +22,30 @@ const {
 
 const ADMIN_ROLE_ID = 1;
 
+// Nombres legibles de los campos de la orden (para explicar qué se intentó modificar)
+const ETIQUETAS_CAMPOS_ORDEN = {
+  client: 'cliente', client_id: 'cliente', service_type: 'tipo de servicio', visit_type: 'tipo de visita',
+  description: 'descripción', location: 'ubicación', priority: 'prioridad', due_date: 'fecha de vencimiento',
+  estimated_cost: 'costo estimado', assigned_technician: 'técnico asignado', requested_by: 'solicitante',
+  progress_percentage: 'porcentaje de avance', approval_status: 'estado de aprobación',
+  estimation_date: 'fecha de estimación', approval_date: 'fecha de aprobación', approved_by: 'aprobado por',
+  rejection_date: 'fecha de rechazo', rejected_by: 'rechazado por', rejection_reason: 'motivo de rechazo',
+  estimated_materials: 'materiales estimados', estimated_time: 'tiempo estimado', required_tools: 'herramientas requeridas',
+  gps_coordinates: 'coordenadas GPS', project_name: 'nombre del proyecto', personnel_list: 'lista de personal',
+  purchase_order_number: 'número de orden de compra', purchase_order_document: 'documento de orden de compra',
+  first_visit_completed: 'primera visita completada', first_visit_date: 'fecha de primera visita',
+  reassignment_date: 'fecha de reasignación', reassigned_by: 'reasignado por', resources: 'recursos',
+  selected_materials: 'materiales seleccionados', selected_tools: 'herramientas seleccionadas', solpe: 'SOLPE',
+  resources_update_date: 'fecha de actualización de recursos', observations: 'observaciones',
+  is_emergency: 'emergencia', technical_visit_id: 'visita técnica', based_on_technical_visit: 'basada en visita técnica'
+};
+
+const describirCampos = (campos, maximo = 5) => {
+  const etiquetas = [...new Set(campos.map(c => ETIQUETAS_CAMPOS_ORDEN[c] || c.replace(/_/g, ' ')))];
+  if (etiquetas.length <= maximo) return etiquetas.join(', ');
+  return `${etiquetas.slice(0, maximo).join(', ')} y ${etiquetas.length - maximo} más`;
+};
+
 /**
  * Solo el administrador define qué firmas del informe final son obligatorias.
  * Para cualquier otro rol el campo se ignora (el COALESCE del modelo conserva el valor actual).
@@ -32,7 +57,10 @@ const resolveSignatureConfig = (req, rawConfig) => {
     return { config: undefined };
   }
   if (!isValidSignatureConfig(rawConfig)) {
-    return { error: 'signature_config inválido: se esperan las claves tecnico, supervisor y administrador con valores booleanos' };
+    return {
+      error: 'Configuración de firmas no válida',
+      message: 'La configuración de firmas obligatorias recibida no es válida: debe indicar, para la firma del técnico, del supervisor y del administrador, si es obligatoria u opcional. Recarga la página y vuelve a configurar las firmas en la sección «Firmas del Informe Final».'
+    };
   }
   return { config: normalizeSignatureConfig(rawConfig) };
 };
@@ -69,7 +97,11 @@ const getAll = async (req, res) => {
       const technician = await getUserById(userId);
 
       if (!technician) {
-        return res.status(404).json({ error: 'Usuario no encontrado' });
+        return res.status(404).json({
+          error: 'Usuario no encontrado',
+          message: 'No se encontró tu usuario en el sistema, así que no se pueden mostrar tus órdenes asignadas (es posible que lo hayan desactivado o eliminado después de que iniciaste sesión). Cierra sesión y vuelve a ingresar; si el problema continúa, avisa al administrador del sistema.',
+          tipo: 'no_encontrado'
+        });
       }
 
       // Forzar filtrado por el nombre del técnico logueado
@@ -89,7 +121,7 @@ const getAll = async (req, res) => {
     res.json(filteredWorkOrders);
   } catch (error) {
     console.error('Error al obtener órdenes de trabajo:', error);
-    res.status(500).json({ error: 'Error al obtener órdenes de trabajo' });
+    responderErrorServidor(res, error, 'Error al obtener órdenes de trabajo');
   }
 };
 
@@ -97,12 +129,18 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const workOrder = await getWorkOrderById(id);
-    if (!workOrder) return res.status(404).json({ error: 'Orden de trabajo no encontrada' });
+    if (!workOrder) {
+      return res.status(404).json({
+        error: 'Orden de trabajo no encontrada',
+        message: `La orden de trabajo ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Órdenes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const filteredWorkOrder = filterSensitiveFields(workOrder, req.user, 'work_order');
     res.json(filteredWorkOrder);
   } catch (error) {
     console.error('Error al obtener orden de trabajo:', error);
-    res.status(500).json({ error: 'Error al obtener orden de trabajo' });
+    responderErrorServidor(res, error, 'Error al obtener orden de trabajo');
   }
 };
 
@@ -122,12 +160,16 @@ const create = async (req, res) => {
 
     // Validaciones básicas
     if (!service_type) {
-      return res.status(400).json({ error: 'El tipo de servicio es requerido' });
+      return res.status(400).json({
+        error: 'El tipo de servicio es requerido',
+        message: 'No se seleccionó el tipo de servicio de la orden. Elige una opción en el campo «Tipo de servicio» del formulario y vuelve a guardar.',
+        tipo: 'validacion'
+      });
     }
 
     const signatureConfigResult = resolveSignatureConfig(req, signature_config);
     if (signatureConfigResult.error) {
-      return res.status(400).json({ error: signatureConfigResult.error });
+      return res.status(400).json({ error: signatureConfigResult.error, message: signatureConfigResult.message, tipo: 'validacion' });
     }
 
     // Generar ID automático
@@ -183,7 +225,7 @@ const create = async (req, res) => {
   } catch (error) {
     console.error('❌ [workOrdersController.create] Error completo:', error);
     console.error('❌ Stack trace:', error.stack);
-    res.status(500).json({ error: 'Error al crear orden de trabajo', details: error.message });
+    responderErrorServidor(res, error, 'Error al crear orden de trabajo');
   }
 };
 
@@ -203,11 +245,17 @@ const update = async (req, res) => {
     } = req.body;
 
     const existingWorkOrder = await getWorkOrderById(id);
-    if (!existingWorkOrder) return res.status(404).json({ error: 'Orden de trabajo no encontrada' });
+    if (!existingWorkOrder) {
+      return res.status(404).json({
+        error: 'Orden de trabajo no encontrada',
+        message: `La orden de trabajo ${id} no existe o fue eliminada por otro usuario, así que no se pueden guardar los cambios. Recarga la pantalla Órdenes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
 
     const signatureConfigResult = resolveSignatureConfig(req, signature_config);
     if (signatureConfigResult.error) {
-      return res.status(400).json({ error: signatureConfigResult.error });
+      return res.status(400).json({ error: signatureConfigResult.error, message: signatureConfigResult.message, tipo: 'validacion' });
     }
 
     // PROTECCIÓN: Bloquear modificaciones a órdenes completadas
@@ -222,10 +270,12 @@ const update = async (req, res) => {
       const hasDisallowedFields = requestedFields.some(field => !allowedFieldsForCompleted.includes(field));
 
       if (hasDisallowedFields) {
-        return res.status(400).json({
+        const blockedFields = requestedFields.filter(field => !allowedFieldsForCompleted.includes(field));
+        return res.status(409).json({
           error: 'Orden completada',
-          message: 'No se puede modificar una orden de trabajo que ya está completada. El trabajo ya fue cerrado.',
-          blockedFields: requestedFields.filter(field => !allowedFieldsForCompleted.includes(field))
+          message: `La orden ${id} está completada: el trabajo ya fue cerrado y sus datos no se pueden modificar (se intentó cambiar: ${describirCampos(blockedFields)}). En una orden completada solo el administrador puede ajustar qué firmas del informe final son obligatorias, desde la sección «Firmas del Informe Final» o desde el informe final de la orden.`,
+          tipo: 'conflicto',
+          blockedFields
         });
       }
     }
@@ -254,7 +304,7 @@ const update = async (req, res) => {
     res.json({ mensaje: 'Orden de trabajo actualizada exitosamente', data: filteredWorkOrder });
   } catch (error) {
     console.error('Error al actualizar orden de trabajo:', error);
-    res.status(500).json({ error: 'Error al actualizar orden de trabajo' });
+    responderErrorServidor(res, error, 'Error al actualizar orden de trabajo');
   }
 };
 
@@ -265,7 +315,11 @@ const remove = async (req, res) => {
 
     const existingWorkOrder = await getWorkOrderById(id);
     if (!existingWorkOrder) {
-      return res.status(404).json({ error: 'Orden de trabajo no encontrada' });
+      return res.status(404).json({
+        error: 'Orden de trabajo no encontrada',
+        message: `La orden de trabajo ${id} no existe o ya fue eliminada por otro usuario. Recarga la pantalla Órdenes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     // Verificar dependencias antes de eliminar
@@ -294,7 +348,7 @@ const remove = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al eliminar orden de trabajo:', error);
-    res.status(500).json({ error: 'Error al eliminar orden de trabajo' });
+    responderErrorServidor(res, error, 'Error al eliminar orden de trabajo');
   }
 };
 
@@ -304,7 +358,7 @@ const getNextId = async (req, res) => {
     res.json({ next_id: nextId });
   } catch (error) {
     console.error('Error al generar ID de orden:', error);
-    res.status(500).json({ error: 'Error al generar ID de orden' });
+    responderErrorServidor(res, error, 'Error al generar ID de orden');
   }
 };
 
@@ -314,7 +368,11 @@ const checkCanDelete = async (req, res) => {
 
     const existingWorkOrder = await getWorkOrderById(id);
     if (!existingWorkOrder) {
-      return res.status(404).json({ error: 'Orden de trabajo no encontrada' });
+      return res.status(404).json({
+        error: 'Orden de trabajo no encontrada',
+        message: `La orden de trabajo ${id} no existe o ya fue eliminada por otro usuario. Recarga la pantalla Órdenes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     const dependencyCheck = await checkWorkOrderDependencies(id);
@@ -328,7 +386,7 @@ const checkCanDelete = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al verificar dependencias:', error);
-    res.status(500).json({ error: 'Error al verificar dependencias' });
+    responderErrorServidor(res, error, 'Error al verificar dependencias');
   }
 };
 
@@ -342,7 +400,7 @@ const getHistory = async (req, res) => {
     res.json(history || []);
   } catch (error) {
     console.error('Error al obtener historial de orden de trabajo:', error);
-    res.status(500).json({ error: 'Error al obtener historial de orden de trabajo' });
+    responderErrorServidor(res, error, 'Error al obtener historial de orden de trabajo');
   }
 };
 

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllDailyReports,
   getDailyReportById,
@@ -22,7 +23,7 @@ const getAll = async (req, res) => {
     res.json(reports);
   } catch (error) {
     console.error('Error al obtener reportes diarios:', error);
-    res.status(500).json({ error: 'Error al obtener reportes diarios' });
+    responderErrorServidor(res, error, 'Error al obtener reportes diarios');
   }
 };
 
@@ -30,11 +31,17 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const report = await getDailyReportById(id);
-    if (!report) return res.status(404).json({ error: 'Reporte diario no encontrado' });
+    if (!report) {
+      return res.status(404).json({
+        error: 'Reporte diario no encontrado',
+        message: `El reporte diario con ID ${id} no existe o fue eliminado por otro usuario. Recarga la lista de reportes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     res.json(report);
   } catch (error) {
     console.error('Error al obtener reporte diario:', error);
-    res.status(500).json({ error: 'Error al obtener reporte diario' });
+    responderErrorServidor(res, error, 'Error al obtener reporte diario');
   }
 };
 
@@ -51,7 +58,11 @@ const create = async (req, res) => {
 
     if (!order_id && !installation_id) {
       console.log('❌ [dailyReportsController.create] Error: Se requiere order_id o installation_id');
-      return res.status(400).json({ error: 'Se requiere order_id o installation_id' });
+      return res.status(400).json({
+        error: 'Reporte sin orden de trabajo',
+        message: 'El reporte no llegó vinculado a ninguna orden de trabajo ni instalación. No es un problema de lo que ingresaste, sino de la aplicación: recarga la página y crea el reporte desde la orden de trabajo correspondiente. Si persiste, avisa al administrador del sistema.',
+        tipo: 'validacion'
+      });
     }
 
     // ========================================
@@ -62,7 +73,11 @@ const create = async (req, res) => {
       const hoy = getCurrentDate();
       hoy.setHours(23, 59, 59, 999); // Fin del día actual (hora Lima)
       if (fechaReporte > hoy) {
-        return res.status(400).json({ error: 'No se pueden crear reportes con fecha futura' });
+        return res.status(400).json({
+          error: 'No se pueden crear reportes con fecha futura',
+          message: `La fecha del reporte (${report_date}) es posterior a hoy. Los reportes diarios solo se registran para hoy o días anteriores: corrige el campo «Fecha» del reporte y vuelve a guardar.`,
+          tipo: 'validacion'
+        });
       }
     }
 
@@ -79,7 +94,11 @@ const create = async (req, res) => {
       const endMinutes = parseTime(end_time);
 
       if (endMinutes <= startMinutes) {
-        return res.status(400).json({ error: 'La hora de fin debe ser posterior a la hora de inicio' });
+        return res.status(400).json({
+          error: 'La hora de fin debe ser posterior a la hora de inicio',
+          message: `La hora de fin (${end_time}) es igual o anterior a la hora de inicio (${start_time}). Corrige los campos «Hora de inicio» y «Hora de fin» del reporte para que el fin sea posterior al inicio.`,
+          tipo: 'validacion'
+        });
       }
     }
 
@@ -224,7 +243,7 @@ const create = async (req, res) => {
     res.status(201).json({ mensaje: 'Reporte diario creado exitosamente', data: newReport });
   } catch (error) {
     console.error('Error al crear reporte diario:', error);
-    res.status(500).json({ error: 'Error al crear reporte diario' });
+    responderErrorServidor(res, error, 'Error al crear reporte diario');
   }
 };
 
@@ -232,7 +251,13 @@ const update = async (req, res) => {
   try {
     const { id } = req.params;
     const existingReport = await getDailyReportById(id);
-    if (!existingReport) return res.status(404).json({ error: 'Reporte diario no encontrado' });
+    if (!existingReport) {
+      return res.status(404).json({
+        error: 'Reporte diario no encontrado',
+        message: `El reporte diario con ID ${id} no existe o fue eliminado por otro usuario. Recarga la lista de reportes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
 
     const reportData = { ...req.body, user_id_modification: req.user.id };
     const updatedReport = await updateDailyReport(id, reportData);
@@ -246,7 +271,7 @@ const update = async (req, res) => {
     res.json({ mensaje: 'Reporte diario actualizado exitosamente', data: updatedReport });
   } catch (error) {
     console.error('Error al actualizar reporte diario:', error);
-    res.status(500).json({ error: 'Error al actualizar reporte diario' });
+    responderErrorServidor(res, error, 'Error al actualizar reporte diario');
   }
 };
 
@@ -254,12 +279,18 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const existingReport = await getDailyReportById(id);
-    if (!existingReport) return res.status(404).json({ error: 'Reporte diario no encontrado' });
+    if (!existingReport) {
+      return res.status(404).json({
+        error: 'Reporte diario no encontrado',
+        message: `El reporte diario con ID ${id} no existe o fue eliminado por otro usuario. Recarga la lista de reportes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedReport = await deleteDailyReport(id, req.user.id);
     res.json({ mensaje: 'Reporte diario eliminado exitosamente', data: deletedReport });
   } catch (error) {
     console.error('Error al eliminar reporte diario:', error);
-    res.status(500).json({ error: 'Error al eliminar reporte diario' });
+    responderErrorServidor(res, error, 'Error al eliminar reporte diario');
   }
 };
 
@@ -278,12 +309,20 @@ const uploadDocument = async (req, res) => {
     const { docType } = req.body;
 
     if (!req.file) {
-      return res.status(400).json({ error: 'No se subió archivo' });
+      return res.status(400).json({
+        error: 'No se subió archivo',
+        message: 'No llegó ningún archivo al servidor. Selecciona el documento (ATS, PTR o Aspectos ambientales) antes de pulsar el botón de subir.',
+        tipo: 'validacion'
+      });
     }
 
     const fieldName = DOCUMENT_FIELD_MAP[docType];
     if (!fieldName) {
-      return res.status(400).json({ error: 'Tipo de documento inválido' });
+      return res.status(400).json({
+        error: 'Tipo de documento inválido',
+        message: `No se reconoce la sección «${docType || 'sin indicar'}» del reporte; solo se admiten ATS, PTR y Aspectos ambientales. No es un problema del archivo, sino de la aplicación: recarga la página y súbelo desde la sección correspondiente. Si persiste, avisa al administrador del sistema.`,
+        tipo: 'validacion'
+      });
     }
 
     // Subir archivo a S3
@@ -307,7 +346,11 @@ const uploadDocument = async (req, res) => {
     );
 
     if (currentResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Reporte no encontrado' });
+      return res.status(404).json({
+        error: 'Reporte no encontrado',
+        message: `El reporte diario con ID ${id} no existe o fue eliminado por otro usuario, así que el documento no se pudo adjuntar. Recarga la lista de reportes para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     let currentValue = currentResult.rows[0][fieldName];
@@ -354,7 +397,7 @@ const uploadDocument = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al subir documento:', error);
-    res.status(500).json({ error: 'Error al subir documento' });
+    responderErrorServidor(res, error, 'Error al subir documento');
   }
 };
 
@@ -395,7 +438,7 @@ const getStatistics = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al obtener estadísticas:', error);
-    res.status(500).json({ error: 'Error al obtener estadísticas de reportes' });
+    responderErrorServidor(res, error, 'Error al obtener estadísticas de reportes');
   }
 };
 

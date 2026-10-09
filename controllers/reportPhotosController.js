@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const { createReportPhoto, getPhotosByReportId, deletePhoto } = require('../models/reportPhotosModel');
 const { getDailyReportById } = require('../models/dailyReportsModel');
 const { addWorkOrderHistoryEntry } = require('../models/workOrdersModel');
@@ -16,12 +17,18 @@ const uploadPhotos = async (req, res) => {
     const validPhotoTypes = ['before', 'after'];
     if (!photoType || !validPhotoTypes.includes(photoType)) {
       return res.status(400).json({
-        error: 'Tipo de foto inválido. Debe ser "before" o "after"'
+        error: 'Tipo de foto inválido',
+        message: `No se indicó si las fotos son de «Antes» o de «Después» del trabajo (se recibió «${photoType || 'sin indicar'}»). No es un problema de las fotos, sino de la aplicación: recarga el reporte y súbelas desde la sección «Antes» o «Después». Si persiste, avisa al administrador del sistema.`,
+        tipo: 'validacion'
       });
     }
 
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No se subieron archivos' });
+      return res.status(400).json({
+        error: 'No se subieron archivos',
+        message: 'No llegó ninguna foto al servidor. Selecciona al menos una foto antes de pulsar el botón de subir.',
+        tipo: 'validacion'
+      });
     }
 
     // Obtener el reporte para conocer el order_id
@@ -71,7 +78,7 @@ const uploadPhotos = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al subir fotos:', error);
-    res.status(500).json({ error: 'Error al crear fotos' });
+    responderErrorServidor(res, error, 'Error al crear fotos');
   }
 };
 
@@ -85,7 +92,7 @@ const getByReport = async (req, res) => {
     res.json(photos);
   } catch (error) {
     console.error('Error al obtener fotos:', error);
-    res.status(500).json({ error: 'Error al obtener fotos' });
+    responderErrorServidor(res, error, 'Error al obtener fotos');
   }
 };
 
@@ -110,7 +117,7 @@ const remove = async (req, res) => {
     res.json({ mensaje: 'Foto eliminada exitosamente', data: deletedPhoto });
   } catch (error) {
     console.error('Error al eliminar foto:', error);
-    res.status(500).json({ error: 'Error al eliminar foto' });
+    responderErrorServidor(res, error, 'Error al eliminar foto');
   }
 };
 

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const express = require('express');
 const router = express.Router();
 const { getFile } = require('../services/wasabiService');
@@ -11,7 +12,11 @@ router.get('/*key', async (req, res) => {
     const key = Array.isArray(keyParam) ? keyParam.join('/') : keyParam;
 
     if (!key) {
-      return res.status(400).json({ error: 'Key de archivo requerida' });
+      return res.status(400).json({
+        error: 'Archivo no indicado',
+        message: 'No se indicó qué archivo abrir. Es un problema de la aplicación, no de tus datos: recarga la página e inténtalo de nuevo; si persiste, avisa al administrador del sistema.',
+        tipo: 'validacion'
+      });
     }
 
     const s3Response = await getFile(key);
@@ -31,10 +36,14 @@ router.get('/*key', async (req, res) => {
     s3Response.Body.pipe(res);
   } catch (error) {
     if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
-      return res.status(404).json({ error: 'Archivo no encontrado' });
+      return res.status(404).json({
+        error: 'Archivo no encontrado',
+        message: 'El archivo solicitado ya no existe en el almacenamiento: puede que se haya eliminado o reemplazado. Recarga la página; si el archivo sigue apareciendo y no se puede abrir, vuelve a adjuntarlo.',
+        tipo: 'no_encontrado'
+      });
     }
     console.error('Error al servir archivo desde S3:', error);
-    res.status(500).json({ error: 'Error al obtener archivo' });
+    responderErrorServidor(res, error, 'Error al obtener archivo');
   }
 });
 

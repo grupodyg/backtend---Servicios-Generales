@@ -1,4 +1,5 @@
 const multer = require('multer');
+const { crearErrorUsuario } = require('./errorMiddleware');
 
 // ========================================
 // ALMACENAMIENTO EN MEMORIA (para S3)
@@ -12,7 +13,11 @@ const imageFilter = (req, file, cb) => {
   if (file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('Solo se permiten imágenes'), false);
+    cb(crearErrorUsuario(
+      400,
+      'Tipo de archivo no permitido',
+      `El archivo «${file.originalname}» no es una imagen (${file.mimetype || 'tipo desconocido'}). En este apartado solo se pueden adjuntar imágenes (JPG, PNG, WEBP, HEIC...). Quítalo de la selección y vuelve a intentarlo.`
+    ), false);
   }
 };
 
@@ -22,7 +27,11 @@ const documentFilter = (req, file, cb) => {
   if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
     cb(null, true);
   } else {
-    cb(new Error('Solo PDF o imágenes'), false);
+    cb(crearErrorUsuario(
+      400,
+      'Tipo de archivo no permitido',
+      `El archivo «${file.originalname}» no es un PDF ni una imagen (${file.mimetype || 'tipo desconocido'}). En este apartado solo se pueden adjuntar documentos PDF o imágenes. Conviértelo a PDF o quítalo de la selección y vuelve a intentarlo.`
+    ), false);
   }
 };
 

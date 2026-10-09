@@ -13,7 +13,7 @@ const ADMIN_ROLE_ID = 1;
 
 const requireAdmin = (req, res, next) => {
   if (req.user?.role_id !== ADMIN_ROLE_ID) {
-    return res.status(403).json({ mensaje: 'Acceso denegado: solo administrador' });
+    return res.status(403).json({ error: 'Acceso denegado', message: 'Esta acción solo la puede realizar un usuario con rol Administrador. Si necesitas hacerla, pídesela a un administrador del sistema.', tipo: 'permiso' });
   }
   next();
 };

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const { getAllInstallations, getInstallationById, createInstallation, updateInstallation, deleteInstallation } = require('../models/installationsModel');
 
 const getAll = async (req, res) => {
@@ -7,7 +8,7 @@ const getAll = async (req, res) => {
     res.json(installations);
   } catch (error) {
     console.error('Error al obtener instalaciones:', error);
-    res.status(500).json({ error: 'Error al obtener instalaciones' });
+    responderErrorServidor(res, error, 'Error al obtener instalaciones');
   }
 };
 
@@ -15,11 +16,17 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const installation = await getInstallationById(id);
-    if (!installation) return res.status(404).json({ error: 'Instalación no encontrada' });
+    if (!installation) {
+      return res.status(404).json({
+        error: 'Instalación no encontrada',
+        message: `La instalación con ID ${id} no existe o fue eliminada por otro usuario. Recarga la lista de instalaciones para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     res.json(installation);
   } catch (error) {
     console.error('Error al obtener instalación:', error);
-    res.status(500).json({ error: 'Error al obtener instalación' });
+    responderErrorServidor(res, error, 'Error al obtener instalación');
   }
 };
 
@@ -31,7 +38,11 @@ const create = async (req, res) => {
     } = req.body;
 
     if (!name || !code) {
-      return res.status(400).json({ error: 'Nombre y código son requeridos' });
+      return res.status(400).json({
+        error: 'Nombre y código son requeridos',
+        message: `${!name && !code ? 'Los campos «Nombre» y «Código» están vacíos' : !name ? 'El campo «Nombre» está vacío' : 'El campo «Código» está vacío'}. Ambos son obligatorios para registrar una instalación: complétalos en el formulario y vuelve a guardar.`,
+        tipo: 'validacion'
+      });
     }
 
     const installationData = {
@@ -47,9 +58,13 @@ const create = async (req, res) => {
   } catch (error) {
     console.error('Error al crear instalación:', error);
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe una instalación con ese código' });
+      return res.status(409).json({
+        error: 'Ya existe una instalación con ese código',
+        message: `Ya hay otra instalación registrada con el código «${req.body?.code}». El código debe ser único: cambia el código en el formulario o busca y edita la instalación existente.`,
+        tipo: 'conflicto'
+      });
     }
-    res.status(500).json({ error: 'Error al crear instalación' });
+    responderErrorServidor(res, error, 'Error al crear instalación');
   }
 };
 
@@ -63,7 +78,13 @@ const update = async (req, res) => {
     } = req.body;
 
     const existingInstallation = await getInstallationById(id);
-    if (!existingInstallation) return res.status(404).json({ error: 'Instalación no encontrada' });
+    if (!existingInstallation) {
+      return res.status(404).json({
+        error: 'Instalación no encontrada',
+        message: `La instalación con ID ${id} no existe o fue eliminada por otro usuario. Recarga la lista de instalaciones para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
 
     const installationData = {
       name, code, client, client_id, address, specialty, equipment_type, brand, model,
@@ -76,9 +97,13 @@ const update = async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar instalación:', error);
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe una instalación con ese código' });
+      return res.status(409).json({
+        error: 'Ya existe una instalación con ese código',
+        message: `Ya hay otra instalación registrada con el código «${req.body?.code}». El código debe ser único: elige otro código en el formulario de edición.`,
+        tipo: 'conflicto'
+      });
     }
-    res.status(500).json({ error: 'Error al actualizar instalación' });
+    responderErrorServidor(res, error, 'Error al actualizar instalación');
   }
 };
 
@@ -86,12 +111,18 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const existingInstallation = await getInstallationById(id);
-    if (!existingInstallation) return res.status(404).json({ error: 'Instalación no encontrada' });
+    if (!existingInstallation) {
+      return res.status(404).json({
+        error: 'Instalación no encontrada',
+        message: `La instalación con ID ${id} no existe o fue eliminada por otro usuario. Recarga la lista de instalaciones para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedInstallation = await deleteInstallation(id, req.user.id);
     res.json({ mensaje: 'Instalación eliminada exitosamente', data: deletedInstallation });
   } catch (error) {
     console.error('Error al eliminar instalación:', error);
-    res.status(500).json({ error: 'Error al eliminar instalación' });
+    responderErrorServidor(res, error, 'Error al eliminar instalación');
   }
 };
 

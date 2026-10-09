@@ -6,7 +6,7 @@ const { getByRole, assign, remove, sync } = require('../controllers/rolesPermiss
 const verificarRolesPermitidos = (req, res, next) => {
   const rol = req.user?.role_id;
   if (![1, 2, 3, 4].includes(rol)) {
-    return res.status(403).json({ mensaje: 'Acceso denegado: Rol no autorizado' });
+    return res.status(403).json({ error: 'Acceso denegado', message: 'Tu rol de usuario no tiene permiso para usar esta sección. Si necesitas acceder, pide al administrador del sistema que revise el rol asignado a tu usuario.', tipo: 'permiso' });
   }
   next();
 };

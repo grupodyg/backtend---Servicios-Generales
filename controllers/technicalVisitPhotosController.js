@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const path = require('path');
 const { getCurrentTimestamp } = require('../utils/dateUtils');
 const pool = require('../config/db');
@@ -25,11 +26,19 @@ const uploadPhotos = async (req, res) => {
 
     const exists = await visitExists(visitId);
     if (!exists) {
-      return res.status(404).json({ error: 'Visita técnica no encontrada' });
+      return res.status(404).json({
+        error: 'Visita técnica no encontrada',
+        message: `La visita técnica con ID ${visitId} no existe o fue eliminada, así que no se le pueden adjuntar fotos. Recarga la pantalla Visitas técnicas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ error: 'No se recibieron archivos' });
+      return res.status(400).json({
+        error: 'No se recibieron archivos',
+        message: 'No llegó ninguna foto al servidor. Selecciona al menos una foto antes de pulsar el botón de subir.',
+        tipo: 'validacion'
+      });
     }
 
     console.log(`Subiendo ${req.files.length} fotos para visita ${visitId}`);
@@ -61,7 +70,7 @@ const uploadPhotos = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al subir fotos:', error);
-    res.status(500).json({ error: 'Error al subir fotos', details: error.message });
+    responderErrorServidor(res, error, 'Error al subir fotos');
   }
 };
 
@@ -72,11 +81,19 @@ const uploadSinglePhoto = async (req, res) => {
 
     const exists = await visitExists(visitId);
     if (!exists) {
-      return res.status(404).json({ error: 'Visita técnica no encontrada' });
+      return res.status(404).json({
+        error: 'Visita técnica no encontrada',
+        message: `La visita técnica con ID ${visitId} no existe o fue eliminada, así que no se le pueden adjuntar fotos. Recarga la pantalla Visitas técnicas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     if (!req.file) {
-      return res.status(400).json({ error: 'No se recibió archivo' });
+      return res.status(400).json({
+        error: 'No se recibió archivo',
+        message: 'No llegó ningún archivo al servidor. Selecciona la foto antes de pulsar el botón de subir.',
+        tipo: 'validacion'
+      });
     }
 
     const tipo = req.body.tipo || 'photo';
@@ -102,7 +119,7 @@ const uploadSinglePhoto = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al subir foto:', error);
-    res.status(500).json({ error: 'Error al subir foto', details: error.message });
+    responderErrorServidor(res, error, 'Error al subir foto');
   }
 };
 
@@ -117,7 +134,7 @@ const deletePhoto = async (req, res) => {
     res.json({ mensaje: 'Foto eliminada exitosamente' });
   } catch (error) {
     console.error('Error al eliminar foto:', error);
-    res.status(500).json({ error: 'Error al eliminar foto', details: error.message });
+    responderErrorServidor(res, error, 'Error al eliminar foto');
   }
 };
 
@@ -139,7 +156,7 @@ const getPhotosByVisit = async (req, res) => {
     res.json({ data: visitPhotos });
   } catch (error) {
     console.error('Error al obtener fotos:', error);
-    res.status(500).json({ error: 'Error al obtener fotos', details: error.message });
+    responderErrorServidor(res, error, 'Error al obtener fotos');
   }
 };
 

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const { getAllPermitAttachments, getPermitAttachmentById, createPermitAttachment, updatePermitAttachment, deletePermitAttachment } = require('../models/permitAttachmentsModel');
 const { uploadFile } = require('../services/wasabiService');
 const path = require('path');
@@ -9,7 +10,7 @@ const getAll = async (req, res) => {
     res.json(attachments);
   } catch (error) {
     console.error('Error al obtener adjuntos de permisos:', error);
-    res.status(500).json({ error: 'Error al obtener adjuntos de permisos' });
+    responderErrorServidor(res, error, 'Error al obtener adjuntos de permisos');
   }
 };
 
@@ -17,11 +18,17 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const attachment = await getPermitAttachmentById(id);
-    if (!attachment) return res.status(404).json({ error: 'Adjunto de permiso no encontrado' });
+    if (!attachment) {
+      return res.status(404).json({
+        error: 'Adjunto de permiso no encontrado',
+        message: `El archivo adjunto con ID ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla Permisos para ver los adjuntos actuales.`,
+        tipo: 'no_encontrado'
+      });
+    }
     res.json(attachment);
   } catch (error) {
     console.error('Error al obtener adjunto de permiso:', error);
-    res.status(500).json({ error: 'Error al obtener adjunto de permiso' });
+    responderErrorServidor(res, error, 'Error al obtener adjunto de permiso');
   }
 };
 
@@ -33,7 +40,7 @@ const create = async (req, res) => {
     res.status(201).json({ mensaje: 'Adjunto de permiso creado exitosamente', data: newAttachment });
   } catch (error) {
     console.error('Error al crear adjunto de permiso:', error);
-    res.status(500).json({ error: 'Error al crear adjunto de permiso' });
+    responderErrorServidor(res, error, 'Error al crear adjunto de permiso');
   }
 };
 
@@ -41,13 +48,19 @@ const update = async (req, res) => {
   try {
     const { id } = req.params;
     const existingAttachment = await getPermitAttachmentById(id);
-    if (!existingAttachment) return res.status(404).json({ error: 'Adjunto de permiso no encontrado' });
+    if (!existingAttachment) {
+      return res.status(404).json({
+        error: 'Adjunto de permiso no encontrado',
+        message: `El archivo adjunto con ID ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla Permisos para ver los adjuntos actuales.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const attachmentData = { ...req.body, user_id_modification: req.user.id };
     const updatedAttachment = await updatePermitAttachment(id, attachmentData);
     res.json({ mensaje: 'Adjunto de permiso actualizado exitosamente', data: updatedAttachment });
   } catch (error) {
     console.error('Error al actualizar adjunto de permiso:', error);
-    res.status(500).json({ error: 'Error al actualizar adjunto de permiso' });
+    responderErrorServidor(res, error, 'Error al actualizar adjunto de permiso');
   }
 };
 
@@ -55,12 +68,18 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const existingAttachment = await getPermitAttachmentById(id);
-    if (!existingAttachment) return res.status(404).json({ error: 'Adjunto de permiso no encontrado' });
+    if (!existingAttachment) {
+      return res.status(404).json({
+        error: 'Adjunto de permiso no encontrado',
+        message: `El archivo adjunto con ID ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla Permisos para ver los adjuntos actuales.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedAttachment = await deletePermitAttachment(id, req.user.id);
     res.json({ mensaje: 'Adjunto de permiso eliminado exitosamente', data: deletedAttachment });
   } catch (error) {
     console.error('Error al eliminar adjunto de permiso:', error);
-    res.status(500).json({ error: 'Error al eliminar adjunto de permiso' });
+    responderErrorServidor(res, error, 'Error al eliminar adjunto de permiso');
   }
 };
 
@@ -70,7 +89,11 @@ const remove = async (req, res) => {
 const uploadFileHandler = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No se subió archivo' });
+      return res.status(400).json({
+        error: 'No se subió archivo',
+        message: 'No llegó ningún archivo al servidor. Selecciona el documento que respalda el permiso antes de pulsar el botón de subir.',
+        tipo: 'validacion'
+      });
     }
 
     const key = `permit-attachments/${Date.now()}_${Math.random().toString(36).substring(7)}_${req.file.originalname}`;
@@ -87,7 +110,7 @@ const uploadFileHandler = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al subir adjunto de permiso:', error);
-    res.status(500).json({ error: 'Error al subir archivo' });
+    responderErrorServidor(res, error, 'Error al subir archivo');
   }
 };
 

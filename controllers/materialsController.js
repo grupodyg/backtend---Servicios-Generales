@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllMaterials,
   getMaterialById,
@@ -18,7 +19,7 @@ const getAll = async (req, res) => {
     res.json(filteredMaterials);
   } catch (error) {
     console.error('Error al obtener materiales:', error);
-    res.status(500).json({ error: 'Error al obtener materiales' });
+    responderErrorServidor(res, error, 'Error al obtener materiales');
   }
 };
 
@@ -26,12 +27,18 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const material = await getMaterialById(id);
-    if (!material) return res.status(404).json({ error: 'Material no encontrado' });
+    if (!material) {
+      return res.status(404).json({
+        error: 'Material no encontrado',
+        message: `El material con ID ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla Materiales para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const filteredMaterial = filterSensitiveFields(material, req.user, 'material');
     res.json(filteredMaterial);
   } catch (error) {
     console.error('Error al obtener material:', error);
-    res.status(500).json({ error: 'Error al obtener material' });
+    responderErrorServidor(res, error, 'Error al obtener material');
   }
 };
 
@@ -43,11 +50,20 @@ const create = async (req, res) => {
     } = req.body;
 
     if (!code || !name || !unit) {
-      return res.status(400).json({ error: 'Código, nombre y unidad son requeridos' });
+      const faltantes = [!code && '«Código»', !name && '«Nombre»', !unit && '«Unidad de medida»'].filter(Boolean);
+      return res.status(400).json({
+        error: 'Código, nombre y unidad son requeridos',
+        message: `Falta completar ${faltantes.join(', ').replace(/, ([^,]*)$/, ' y $1')}. El código, el nombre y la unidad de medida son obligatorios para registrar un material: complétalos en el formulario y vuelve a guardar.`,
+        tipo: 'validacion'
+      });
     }
 
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ error: 'Usuario no autenticado correctamente' });
+      return res.status(401).json({
+        error: 'Usuario no autenticado correctamente',
+        message: 'No se pudo identificar tu usuario en la sesión actual. Cierra sesión, vuelve a iniciarla e inténtalo de nuevo.',
+        tipo: 'sesion'
+      });
     }
 
     let imageUrl = null;
@@ -70,15 +86,20 @@ const create = async (req, res) => {
   } catch (error) {
     console.error('Error al crear material:', error);
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe un material con ese código' });
+      return res.status(409).json({
+        error: 'Ya existe un material con ese código',
+        message: `Ya hay otro material registrado con el código${req.body?.code ? ` «${req.body.code}»` : ''}. El código debe ser único: cámbialo en el campo «Código» del formulario o busca y edita el material existente.`,
+        tipo: 'conflicto'
+      });
     }
     if (error.code === '23503') {
-      return res.status(400).json({ error: 'La categoría especificada no existe' });
+      return res.status(400).json({
+        error: 'La categoría especificada no existe',
+        message: 'La categoría seleccionada para el material no existe o fue eliminada. Recarga la página y elige otra categoría en el campo «Categoría» del formulario.',
+        tipo: 'validacion'
+      });
     }
-    res.status(500).json({
-      error: 'Error al crear material',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    responderErrorServidor(res, error, 'Error al crear material');
   }
 };
 
@@ -91,11 +112,21 @@ const update = async (req, res) => {
     } = req.body;
 
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ error: 'Usuario no autenticado correctamente' });
+      return res.status(401).json({
+        error: 'Usuario no autenticado correctamente',
+        message: 'No se pudo identificar tu usuario en la sesión actual. Cierra sesión, vuelve a iniciarla e inténtalo de nuevo.',
+        tipo: 'sesion'
+      });
     }
 
     const existingMaterial = await getMaterialById(id);
-    if (!existingMaterial) return res.status(404).json({ error: 'Material no encontrado' });
+    if (!existingMaterial) {
+      return res.status(404).json({
+        error: 'Material no encontrado',
+        message: `El material con ID ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla Materiales para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
 
     let imageUrl = undefined;
 
@@ -126,15 +157,20 @@ const update = async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar material:', error);
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe un material con ese código' });
+      return res.status(409).json({
+        error: 'Ya existe un material con ese código',
+        message: `Ya hay otro material registrado con el código${req.body?.code ? ` «${req.body.code}»` : ''}. El código debe ser único: cámbialo en el campo «Código» del formulario o busca y edita el material existente.`,
+        tipo: 'conflicto'
+      });
     }
     if (error.code === '23503') {
-      return res.status(400).json({ error: 'La categoría especificada no existe' });
+      return res.status(400).json({
+        error: 'La categoría especificada no existe',
+        message: 'La categoría seleccionada para el material no existe o fue eliminada. Recarga la página y elige otra categoría en el campo «Categoría» del formulario.',
+        tipo: 'validacion'
+      });
     }
-    res.status(500).json({
-      error: 'Error al actualizar material',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    responderErrorServidor(res, error, 'Error al actualizar material');
   }
 };
 
@@ -143,19 +179,26 @@ const remove = async (req, res) => {
     const { id } = req.params;
 
     if (!req.user || !req.user.id) {
-      return res.status(401).json({ error: 'Usuario no autenticado correctamente' });
+      return res.status(401).json({
+        error: 'Usuario no autenticado correctamente',
+        message: 'No se pudo identificar tu usuario en la sesión actual. Cierra sesión, vuelve a iniciarla e inténtalo de nuevo.',
+        tipo: 'sesion'
+      });
     }
 
     const existingMaterial = await getMaterialById(id);
-    if (!existingMaterial) return res.status(404).json({ error: 'Material no encontrado' });
+    if (!existingMaterial) {
+      return res.status(404).json({
+        error: 'Material no encontrado',
+        message: `El material con ID ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla Materiales para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedMaterial = await deleteMaterial(id, req.user.id);
     res.json({ mensaje: 'Material eliminado exitosamente', data: deletedMaterial });
   } catch (error) {
     console.error('Error al eliminar material:', error);
-    res.status(500).json({
-      error: 'Error al eliminar material',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
+    responderErrorServidor(res, error, 'Error al eliminar material');
   }
 };
 

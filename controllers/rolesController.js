@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllRoles,
   getRoleById,
@@ -13,7 +14,7 @@ const getAll = async (req, res) => {
     res.json(roles);
   } catch (error) {
     console.error('Error al obtener roles:', error);
-    res.status(500).json({ error: 'Error al obtener roles' });
+    responderErrorServidor(res, error, 'Error al obtener roles');
   }
 };
 
@@ -22,12 +23,16 @@ const getById = async (req, res) => {
     const { id } = req.params;
     const role = await getRoleById(id);
     if (!role) {
-      return res.status(404).json({ error: 'Rol no encontrado' });
+      return res.status(404).json({
+        error: 'Rol no encontrado',
+        message: `El rol con ID ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla de roles y permisos para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
     res.json(role);
   } catch (error) {
     console.error('Error al obtener rol:', error);
-    res.status(500).json({ error: 'Error al obtener rol' });
+    responderErrorServidor(res, error, 'Error al obtener rol');
   }
 };
 
@@ -35,7 +40,11 @@ const create = async (req, res) => {
   try {
     const { name, description } = req.body;
     if (!name || name.trim() === '') {
-      return res.status(400).json({ error: 'El nombre es requerido' });
+      return res.status(400).json({
+        error: 'El nombre es requerido',
+        message: 'El campo «Nombre» del rol está vacío. Escribe un nombre para el rol (por ejemplo, «Supervisor») y vuelve a guardar.',
+        tipo: 'validacion'
+      });
     }
     const roleData = {
       name: name.trim(),
@@ -47,9 +56,13 @@ const create = async (req, res) => {
   } catch (error) {
     console.error('Error al crear rol:', error);
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe un rol con ese nombre' });
+      return res.status(409).json({
+        error: 'Ya existe un rol con ese nombre',
+        message: `Ya existe un rol llamado «${req.body?.name?.trim()}». El nombre debe ser único: elige otro nombre en el formulario del rol o edita el rol existente.`,
+        tipo: 'conflicto'
+      });
     }
-    res.status(500).json({ error: 'Error al crear rol' });
+    responderErrorServidor(res, error, 'Error al crear rol');
   }
 };
 
@@ -59,7 +72,11 @@ const update = async (req, res) => {
     const { name, description, status } = req.body;
     const existingRole = await getRoleById(id);
     if (!existingRole) {
-      return res.status(404).json({ error: 'Rol no encontrado' });
+      return res.status(404).json({
+        error: 'Rol no encontrado',
+        message: `El rol con ID ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla de roles y permisos para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
     const roleData = {
       name: name ? name.trim() : undefined,
@@ -72,9 +89,13 @@ const update = async (req, res) => {
   } catch (error) {
     console.error('Error al actualizar rol:', error);
     if (error.code === '23505') {
-      return res.status(409).json({ error: 'Ya existe un rol con ese nombre' });
+      return res.status(409).json({
+        error: 'Ya existe un rol con ese nombre',
+        message: `Ya existe un rol llamado «${req.body?.name?.trim()}». El nombre debe ser único: elige otro nombre en el formulario del rol o edita el rol existente.`,
+        tipo: 'conflicto'
+      });
     }
-    res.status(500).json({ error: 'Error al actualizar rol' });
+    responderErrorServidor(res, error, 'Error al actualizar rol');
   }
 };
 
@@ -83,13 +104,17 @@ const remove = async (req, res) => {
     const { id } = req.params;
     const existingRole = await getRoleById(id);
     if (!existingRole) {
-      return res.status(404).json({ error: 'Rol no encontrado' });
+      return res.status(404).json({
+        error: 'Rol no encontrado',
+        message: `El rol con ID ${id} no existe o fue eliminado por otro usuario. Recarga la pantalla de roles y permisos para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
     const deletedRole = await deleteRole(id, req.user.id);
     res.json({ mensaje: 'Rol eliminado exitosamente', data: deletedRole });
   } catch (error) {
     console.error('Error al eliminar rol:', error);
-    res.status(500).json({ error: 'Error al eliminar rol' });
+    responderErrorServidor(res, error, 'Error al eliminar rol');
   }
 };
 

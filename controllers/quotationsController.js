@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllQuotations,
   getQuotationById,
@@ -18,7 +19,7 @@ const getAll = async (req, res) => {
     res.json(filteredQuotations);
   } catch (error) {
     console.error('Error al obtener cotizaciones:', error);
-    res.status(500).json({ error: 'Error al obtener cotizaciones' });
+    responderErrorServidor(res, error, 'Error al obtener cotizaciones');
   }
 };
 
@@ -26,12 +27,18 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const quotation = await getQuotationById(id);
-    if (!quotation) return res.status(404).json({ error: 'Cotización no encontrada' });
+    if (!quotation) {
+      return res.status(404).json({
+        error: 'Cotización no encontrada',
+        message: `La cotización con ID ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Presupuestos para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const filteredQuotation = filterSensitiveFields(quotation, req.user, 'quotation');
     res.json(filteredQuotation);
   } catch (error) {
     console.error('Error al obtener cotización:', error);
-    res.status(500).json({ error: 'Error al obtener cotización' });
+    responderErrorServidor(res, error, 'Error al obtener cotización');
   }
 };
 
@@ -66,11 +73,7 @@ const create = async (req, res) => {
     }
   } catch (error) {
     console.error('Error al crear cotización:', error);
-    res.status(500).json({
-      error: 'Error al crear cotización',
-      details: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
+    responderErrorServidor(res, error, 'Error al crear cotización');
   }
 };
 
@@ -78,7 +81,13 @@ const update = async (req, res) => {
   try {
     const { id } = req.params;
     const existingQuotation = await getQuotationById(id);
-    if (!existingQuotation) return res.status(404).json({ error: 'Cotización no encontrada' });
+    if (!existingQuotation) {
+      return res.status(404).json({
+        error: 'Cotización no encontrada',
+        message: `La cotización con ID ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Presupuestos para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
 
     const { items, ...quotationFields } = req.body;
 
@@ -96,7 +105,7 @@ const update = async (req, res) => {
     }
   } catch (error) {
     console.error('Error al actualizar cotización:', error);
-    res.status(500).json({ error: 'Error al actualizar cotización' });
+    responderErrorServidor(res, error, 'Error al actualizar cotización');
   }
 };
 
@@ -104,12 +113,18 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const existingQuotation = await getQuotationById(id);
-    if (!existingQuotation) return res.status(404).json({ error: 'Cotización no encontrada' });
+    if (!existingQuotation) {
+      return res.status(404).json({
+        error: 'Cotización no encontrada',
+        message: `La cotización con ID ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Presupuestos para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedQuotation = await deleteQuotation(id, req.user.id);
     res.json({ mensaje: 'Cotización cancelada exitosamente', data: deletedQuotation });
   } catch (error) {
     console.error('Error al cancelar cotización:', error);
-    res.status(500).json({ error: 'Error al cancelar cotización' });
+    responderErrorServidor(res, error, 'Error al cancelar cotización');
   }
 };
 
@@ -119,7 +134,7 @@ const getNextNumber = async (req, res) => {
     res.json({ next_number: nextNumber });
   } catch (error) {
     console.error('Error al generar número de cotización:', error);
-    res.status(500).json({ error: 'Error al generar número de cotización' });
+    responderErrorServidor(res, error, 'Error al generar número de cotización');
   }
 };
 

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const { getAllMaterialRequests, getMaterialRequestById, createMaterialRequest, updateMaterialRequest, deleteMaterialRequest, addMaterialRequestItems } = require('../models/materialRequestsModel');
 
 const getAll = async (req, res) => {
@@ -17,7 +18,7 @@ const getAll = async (req, res) => {
     res.json(requests);
   } catch (error) {
     console.error('Error al obtener solicitudes:', error);
-    res.status(500).json({ error: 'Error al obtener solicitudes' });
+    responderErrorServidor(res, error, 'Error al obtener solicitudes');
   }
 };
 
@@ -25,11 +26,17 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const request = await getMaterialRequestById(id);
-    if (!request) return res.status(404).json({ error: 'Solicitud no encontrada' });
+    if (!request) {
+      return res.status(404).json({
+        error: 'Solicitud no encontrada',
+        message: `La solicitud de materiales con ID ${id} no existe o fue eliminada por otro usuario. Recarga la página para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     res.json(request);
   } catch (error) {
     console.error('Error al obtener solicitud:', error);
-    res.status(500).json({ error: 'Error al obtener solicitud' });
+    responderErrorServidor(res, error, 'Error al obtener solicitud');
   }
 };
 
@@ -60,7 +67,7 @@ const create = async (req, res) => {
     res.status(201).json({ mensaje: 'Solicitud creada exitosamente', data: completeRequest });
   } catch (error) {
     console.error('Error al crear solicitud:', error);
-    res.status(500).json({ error: 'Error al crear solicitud' });
+    responderErrorServidor(res, error, 'Error al crear solicitud');
   }
 };
 
@@ -68,13 +75,19 @@ const update = async (req, res) => {
   try {
     const { id } = req.params;
     const existingRequest = await getMaterialRequestById(id);
-    if (!existingRequest) return res.status(404).json({ error: 'Solicitud no encontrada' });
+    if (!existingRequest) {
+      return res.status(404).json({
+        error: 'Solicitud no encontrada',
+        message: `La solicitud de materiales con ID ${id} no existe o fue eliminada por otro usuario. Recarga la página para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const requestData = { ...req.body, user_id_modification: req.user.id };
     const updatedRequest = await updateMaterialRequest(id, requestData);
     res.json({ mensaje: 'Solicitud actualizada exitosamente', data: updatedRequest });
   } catch (error) {
     console.error('Error al actualizar solicitud:', error);
-    res.status(500).json({ error: 'Error al actualizar solicitud' });
+    responderErrorServidor(res, error, 'Error al actualizar solicitud');
   }
 };
 
@@ -82,12 +95,18 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const existingRequest = await getMaterialRequestById(id);
-    if (!existingRequest) return res.status(404).json({ error: 'Solicitud no encontrada' });
+    if (!existingRequest) {
+      return res.status(404).json({
+        error: 'Solicitud no encontrada',
+        message: `La solicitud de materiales con ID ${id} no existe o fue eliminada por otro usuario. Recarga la página para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedRequest = await deleteMaterialRequest(id, req.user.id);
     res.json({ mensaje: 'Solicitud cancelada exitosamente', data: deletedRequest });
   } catch (error) {
     console.error('Error al cancelar solicitud:', error);
-    res.status(500).json({ error: 'Error al cancelar solicitud' });
+    responderErrorServidor(res, error, 'Error al cancelar solicitud');
   }
 };
 

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const {
   getAllMaterialCategories,
   getMaterialCategoryById,
@@ -16,7 +17,7 @@ const getAll = async (req, res) => {
     res.json(categories);
   } catch (error) {
     console.error('Error al obtener categorías de materiales:', error);
-    res.status(500).json({ error: 'Error al obtener categorías de materiales' });
+    responderErrorServidor(res, error, 'Error al obtener categorías de materiales');
   }
 };
 
@@ -29,13 +30,17 @@ const getById = async (req, res) => {
     const category = await getMaterialCategoryById(id);
 
     if (!category) {
-      return res.status(404).json({ error: 'Categoría de materiales no encontrada' });
+      return res.status(404).json({
+        error: 'Categoría de materiales no encontrada',
+        message: `La categoría de materiales con ID ${id} no existe o fue eliminada por otro usuario. Recarga la lista de categorías para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     res.json(category);
   } catch (error) {
     console.error('Error al obtener categoría de materiales:', error);
-    res.status(500).json({ error: 'Error al obtener categoría de materiales' });
+    responderErrorServidor(res, error, 'Error al obtener categoría de materiales');
   }
 };
 
@@ -48,15 +53,27 @@ const create = async (req, res) => {
 
     // Validaciones
     if (!name || name.trim() === '') {
-      return res.status(400).json({ error: 'El nombre es requerido' });
+      return res.status(400).json({
+        error: 'El nombre es requerido',
+        message: 'El campo «Nombre» de la categoría está vacío. Escribe un nombre para la categoría y vuelve a guardar.',
+        tipo: 'validacion'
+      });
     }
 
     if (!prefix || prefix.trim() === '') {
-      return res.status(400).json({ error: 'El prefijo es requerido' });
+      return res.status(400).json({
+        error: 'El prefijo es requerido',
+        message: 'El campo «Prefijo» de la categoría está vacío. El prefijo (de 1 a 4 caracteres, por ejemplo «ELEC») se usa para generar los códigos: escríbelo y vuelve a guardar.',
+        tipo: 'validacion'
+      });
     }
 
     if (prefix.trim().length > 4) {
-      return res.status(400).json({ error: 'El prefijo no puede tener más de 4 caracteres' });
+      return res.status(400).json({
+        error: 'El prefijo no puede tener más de 4 caracteres',
+        message: `El prefijo «${prefix.trim()}» tiene ${prefix.trim().length} caracteres y el máximo permitido es 4. Acórtalo en el campo «Prefijo» de la categoría y vuelve a guardar.`,
+        tipo: 'validacion'
+      });
     }
 
     const categoryData = {
@@ -77,14 +94,22 @@ const create = async (req, res) => {
     // Error de nombre o prefijo duplicado
     if (error.code === '23505') {
       if (error.constraint === 'material_categories_name_key') {
-        return res.status(409).json({ error: 'Ya existe una categoría con ese nombre' });
+        return res.status(409).json({
+          error: 'Ya existe una categoría con ese nombre',
+          message: `Ya existe una categoría de materiales llamada «${req.body?.name?.trim()}» (también cuentan las categorías eliminadas). Elige otro nombre en el formulario de la categoría o edita la categoría existente.`,
+          tipo: 'conflicto'
+        });
       }
       if (error.constraint === 'material_categories_prefix_key') {
-        return res.status(409).json({ error: 'Ya existe una categoría con ese prefijo' });
+        return res.status(409).json({
+          error: 'Ya existe una categoría con ese prefijo',
+          message: `Ya existe una categoría de materiales con el prefijo «${req.body?.prefix?.trim().toUpperCase()}» (también cuentan las categorías eliminadas). Elige otro prefijo en el formulario de la categoría o edita la categoría existente.`,
+          tipo: 'conflicto'
+        });
       }
     }
 
-    res.status(500).json({ error: 'Error al crear categoría de materiales' });
+    responderErrorServidor(res, error, 'Error al crear categoría de materiales');
   }
 };
 
@@ -99,12 +124,20 @@ const update = async (req, res) => {
     // Validar que la categoría existe
     const existingCategory = await getMaterialCategoryById(id);
     if (!existingCategory) {
-      return res.status(404).json({ error: 'Categoría de materiales no encontrada' });
+      return res.status(404).json({
+        error: 'Categoría de materiales no encontrada',
+        message: `La categoría de materiales con ID ${id} no existe o fue eliminada por otro usuario. Recarga la lista de categorías para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     // Validar prefijo si se proporciona
     if (prefix && prefix.trim().length > 4) {
-      return res.status(400).json({ error: 'El prefijo no puede tener más de 4 caracteres' });
+      return res.status(400).json({
+        error: 'El prefijo no puede tener más de 4 caracteres',
+        message: `El prefijo «${prefix.trim()}» tiene ${prefix.trim().length} caracteres y el máximo permitido es 4. Acórtalo en el campo «Prefijo» de la categoría y vuelve a guardar.`,
+        tipo: 'validacion'
+      });
     }
 
     const categoryData = {
@@ -126,14 +159,22 @@ const update = async (req, res) => {
     // Error de nombre o prefijo duplicado
     if (error.code === '23505') {
       if (error.constraint === 'material_categories_name_key') {
-        return res.status(409).json({ error: 'Ya existe una categoría con ese nombre' });
+        return res.status(409).json({
+          error: 'Ya existe una categoría con ese nombre',
+          message: `Ya existe una categoría de materiales llamada «${req.body?.name?.trim()}» (también cuentan las categorías eliminadas). Elige otro nombre en el formulario de la categoría o edita la categoría existente.`,
+          tipo: 'conflicto'
+        });
       }
       if (error.constraint === 'material_categories_prefix_key') {
-        return res.status(409).json({ error: 'Ya existe una categoría con ese prefijo' });
+        return res.status(409).json({
+          error: 'Ya existe una categoría con ese prefijo',
+          message: `Ya existe una categoría de materiales con el prefijo «${req.body?.prefix?.trim().toUpperCase()}» (también cuentan las categorías eliminadas). Elige otro prefijo en el formulario de la categoría o edita la categoría existente.`,
+          tipo: 'conflicto'
+        });
       }
     }
 
-    res.status(500).json({ error: 'Error al actualizar categoría de materiales' });
+    responderErrorServidor(res, error, 'Error al actualizar categoría de materiales');
   }
 };
 
@@ -147,7 +188,11 @@ const remove = async (req, res) => {
     // Validar que la categoría existe
     const existingCategory = await getMaterialCategoryById(id);
     if (!existingCategory) {
-      return res.status(404).json({ error: 'Categoría de materiales no encontrada' });
+      return res.status(404).json({
+        error: 'Categoría de materiales no encontrada',
+        message: `La categoría de materiales con ID ${id} no existe o fue eliminada por otro usuario. Recarga la lista de categorías para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
     }
 
     const deletedCategory = await deleteMaterialCategory(id, req.user.id);
@@ -157,7 +202,7 @@ const remove = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al eliminar categoría de materiales:', error);
-    res.status(500).json({ error: 'Error al eliminar categoría de materiales' });
+    responderErrorServidor(res, error, 'Error al eliminar categoría de materiales');
   }
 };
 

@@ -1,3 +1,4 @@
+const { responderErrorServidor } = require('../utils/httpErrors');
 const { getAllPayrollSlips, getPayrollSlipById, createPayrollSlip, updatePayrollSlip, deletePayrollSlip } = require('../models/payrollSlipsModel');
 const { uploadFile } = require('../services/wasabiService');
 const path = require('path');
@@ -9,7 +10,7 @@ const getAll = async (req, res) => {
     res.json(payrollSlips);
   } catch (error) {
     console.error('Error al obtener nóminas:', error);
-    res.status(500).json({ error: 'Error al obtener nóminas' });
+    responderErrorServidor(res, error, 'Error al obtener nóminas');
   }
 };
 
@@ -17,11 +18,17 @@ const getById = async (req, res) => {
   try {
     const { id } = req.params;
     const payrollSlip = await getPayrollSlipById(id);
-    if (!payrollSlip) return res.status(404).json({ error: 'Nómina no encontrada' });
+    if (!payrollSlip) {
+      return res.status(404).json({
+        error: 'Nómina no encontrada',
+        message: `La boleta de pago con ID ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Boletas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     res.json(payrollSlip);
   } catch (error) {
     console.error('Error al obtener nómina:', error);
-    res.status(500).json({ error: 'Error al obtener nómina' });
+    responderErrorServidor(res, error, 'Error al obtener nómina');
   }
 };
 
@@ -70,7 +77,7 @@ const create = async (req, res) => {
     res.status(201).json({ mensaje: 'Nómina creada exitosamente', data: newPayrollSlip });
   } catch (error) {
     console.error('Error al crear nómina:', error);
-    res.status(500).json({ error: 'Error al crear nómina' });
+    responderErrorServidor(res, error, 'Error al crear nómina');
   }
 };
 
@@ -78,7 +85,13 @@ const update = async (req, res) => {
   try {
     const { id } = req.params;
     const existingPayrollSlip = await getPayrollSlipById(id);
-    if (!existingPayrollSlip) return res.status(404).json({ error: 'Nómina no encontrada' });
+    if (!existingPayrollSlip) {
+      return res.status(404).json({
+        error: 'Nómina no encontrada',
+        message: `La boleta de pago con ID ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Boletas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const payrollSlipData = { ...req.body, user_id_modification: req.user.id };
     const updatedPayrollSlip = await updatePayrollSlip(id, payrollSlipData);
     res.json({ mensaje: 'Nómina actualizada exitosamente', data: updatedPayrollSlip });
@@ -86,7 +99,7 @@ const update = async (req, res) => {
     console.error('Error al actualizar nómina:', error.message);
     console.error('Stack:', error.stack);
     console.error('Datos recibidos:', req.body);
-    res.status(500).json({ error: 'Error al actualizar nómina', details: error.message });
+    responderErrorServidor(res, error, 'Error al actualizar nómina');
   }
 };
 
@@ -94,12 +107,18 @@ const remove = async (req, res) => {
   try {
     const { id } = req.params;
     const existingPayrollSlip = await getPayrollSlipById(id);
-    if (!existingPayrollSlip) return res.status(404).json({ error: 'Nómina no encontrada' });
+    if (!existingPayrollSlip) {
+      return res.status(404).json({
+        error: 'Nómina no encontrada',
+        message: `La boleta de pago con ID ${id} no existe o fue eliminada por otro usuario. Recarga la pantalla Boletas para ver la información actualizada.`,
+        tipo: 'no_encontrado'
+      });
+    }
     const deletedPayrollSlip = await deletePayrollSlip(id, req.user.id);
     res.json({ mensaje: 'Nómina eliminada exitosamente', data: deletedPayrollSlip });
   } catch (error) {
     console.error('Error al eliminar nómina:', error);
-    res.status(500).json({ error: 'Error al eliminar nómina' });
+    responderErrorServidor(res, error, 'Error al eliminar nómina');
   }
 };
 
@@ -109,7 +128,11 @@ const remove = async (req, res) => {
 const uploadFileHandler = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No se subió archivo' });
+      return res.status(400).json({
+        error: 'No se subió archivo',
+        message: 'No llegó ningún archivo al servidor. Selecciona el archivo de la boleta antes de pulsar el botón de subir.',
+        tipo: 'validacion'
+      });
     }
 
     const ext = path.extname(req.file.originalname);
@@ -127,7 +150,7 @@ const uploadFileHandler = async (req, res) => {
     });
   } catch (error) {
     console.error('Error al subir archivo de boleta:', error);
-    res.status(500).json({ error: 'Error al subir archivo' });
+    responderErrorServidor(res, error, 'Error al subir archivo');
   }
 };
 
